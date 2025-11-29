@@ -87,6 +87,19 @@ export async function registerRoutes(
   app.get("/api/stats", async (req, res) => {
     try {
       const agents = await storage.getAllAgents();
+      
+      // Count preset usage across all agents
+      const presetUsage: Record<string, number> = {};
+      agents.forEach((a) => {
+        const preset = a.audioSettings.accentPreset || "neutral";
+        presetUsage[preset] = (presetUsage[preset] || 0) + 1;
+      });
+
+      // Calculate average settings
+      const avgNoiseReduction = agents.reduce((sum, a) => sum + (a.audioSettings.noiseReductionLevel || 50), 0) / agents.length;
+      const avgClarityBoost = agents.reduce((sum, a) => sum + (a.audioSettings.clarityBoost || 0), 0) / agents.length;
+      const volumeNormalizationCount = agents.filter((a) => a.audioSettings.volumeNormalization).length;
+
       const stats = {
         total: agents.length,
         online: agents.filter((a) => a.status === "online").length,
@@ -96,6 +109,10 @@ export async function registerRoutes(
         processing: agents.filter((a) => a.isProcessingActive).length,
         noiseReductionActive: agents.filter((a) => a.audioSettings.noiseReductionEnabled).length,
         accentModifierActive: agents.filter((a) => a.audioSettings.accentModifierEnabled).length,
+        presetUsage,
+        avgNoiseReduction: Math.round(avgNoiseReduction),
+        avgClarityBoost: Math.round(avgClarityBoost),
+        volumeNormalizationCount,
       };
       res.json(stats);
     } catch (error) {
