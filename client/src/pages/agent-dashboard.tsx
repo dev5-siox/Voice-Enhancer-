@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AudioControls } from "@/components/audio-controls";
+import { CustomProfiles } from "@/components/custom-profiles";
 import { CallTimer } from "@/components/call-timer";
 import { StatusBadge } from "@/components/status-badge";
 import { useAudioProcessor } from "@/hooks/use-audio-processor";
@@ -9,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Headphones, Info, Keyboard, Save, User } from "lucide-react";
+import { Headphones, Info, Keyboard, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { AudioSettings, AgentStatusType, Agent } from "@shared/schema";
 import { defaultAudioSettings } from "@shared/schema";
@@ -153,6 +154,13 @@ export default function AgentDashboard() {
       createAgentMutation.mutate(setupName.trim());
     }
   };
+
+  const handleApplyProfile = useCallback((profileSettings: AudioSettings) => {
+    setSettings(profileSettings);
+    if (agentId) {
+      updateSettingsMutation.mutate({ audioSettings: profileSettings });
+    }
+  }, [agentId, updateSettingsMutation]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -303,6 +311,15 @@ export default function AgentDashboard() {
           getAnalyserData={audioProcessor.getAnalyserData}
           error={audioProcessor.error}
         />
+
+        {/* Custom Profiles */}
+        {agentId && (
+          <CustomProfiles
+            agentId={agentId}
+            currentSettings={settings}
+            onApplyProfile={handleApplyProfile}
+          />
+        )}
       </div>
     </div>
   );
