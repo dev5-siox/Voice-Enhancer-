@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -15,10 +16,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Save, Trash2, User, Users, Plus } from "lucide-react";
+import { Save, Trash2, User, Users, Plus, Building2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { AudioSettings, CustomProfile } from "@shared/schema";
+import type { AudioSettings, CustomProfile, TeamPreset } from "@shared/schema";
 
 interface CustomProfilesProps {
   agentId: string;
@@ -34,6 +35,7 @@ export function CustomProfiles({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [isShared, setIsShared] = useState(false);
+  const [activeTab, setActiveTab] = useState("my-profiles");
   const { toast } = useToast();
 
   const { data: myProfiles = [], isLoading: loadingMyProfiles } = useQuery<CustomProfile[]>({
@@ -42,6 +44,10 @@ export function CustomProfiles({
 
   const { data: sharedProfiles = [], isLoading: loadingShared } = useQuery<CustomProfile[]>({
     queryKey: ["/api/profiles/shared"],
+  });
+
+  const { data: teamPresets = [], isLoading: loadingTeamPresets } = useQuery<TeamPreset[]>({
+    queryKey: ["/api/team-presets/active"],
   });
 
   const createProfileMutation = useMutation({
@@ -119,8 +125,17 @@ export function CustomProfiles({
     });
   };
 
+  const handleApplyTeamPreset = (preset: TeamPreset) => {
+    onApplyProfile(preset.audioSettings);
+    toast({
+      title: "Team preset applied",
+      description: `Applied "${preset.name}" team preset.`,
+    });
+  };
+
   const allProfiles = [...myProfiles, ...sharedProfiles.filter((sp) => sp.agentId !== agentId)];
-  const isLoading = loadingMyProfiles || loadingShared;
+  const isProfilesLoading = loadingMyProfiles || loadingShared;
+  const isTeamPresetsLoading = loadingTeamPresets;
 
   return (
     <Card>
@@ -198,59 +213,115 @@ export function CustomProfiles({
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="text-sm text-muted-foreground text-center py-4">
-            Loading profiles...
-          </div>
-        ) : allProfiles.length === 0 ? (
-          <div className="text-sm text-muted-foreground text-center py-4">
-            No saved profiles yet. Save your current settings to create one.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {allProfiles.map((profile) => (
-              <div 
-                key={profile.id}
-                className="flex items-center justify-between p-2 rounded-md border hover-elevate"
-                data-testid={`profile-item-${profile.id}`}
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <button
-                    onClick={() => handleApplyProfile(profile)}
-                    className="flex items-center gap-2 flex-1 min-w-0 text-left"
-                    data-testid={`button-apply-profile-${profile.id}`}
-                  >
-                    <span className="text-sm font-medium truncate">{profile.name}</span>
-                    {profile.isShared && (
-                      <Badge variant="secondary" className="shrink-0">
-                        <Users className="w-3 h-3 mr-1" />
-                        Team
-                      </Badge>
-                    )}
-                    {profile.agentId === agentId && !profile.isShared && (
-                      <Badge variant="outline" className="shrink-0">
-                        <User className="w-3 h-3 mr-1" />
-                        Mine
-                      </Badge>
-                    )}
-                  </button>
-                </div>
-                {profile.agentId === agentId && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="shrink-0 h-8 w-8"
-                    onClick={() => deleteProfileMutation.mutate(profile.id)}
-                    disabled={deleteProfileMutation.isPending}
-                    data-testid={`button-delete-profile-${profile.id}`}
-                  >
-                    <Trash2 className="w-4 h-4 text-muted-foreground" />
-                  </Button>
-                )}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="w-full mb-3">
+            <TabsTrigger value="my-profiles" className="flex-1" data-testid="tab-my-profiles">
+              <User className="w-3 h-3 mr-1" />
+              My Profiles
+            </TabsTrigger>
+            <TabsTrigger value="team-presets" className="flex-1" data-testid="tab-team-presets">
+              <Building2 className="w-3 h-3 mr-1" />
+              Team Presets
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="my-profiles" className="mt-0">
+            {isProfilesLoading ? (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                Loading profiles...
               </div>
-            ))}
-          </div>
-        )}
+            ) : allProfiles.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                No saved profiles yet. Save your current settings to create one.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {allProfiles.map((profile) => (
+                  <div 
+                    key={profile.id}
+                    className="flex items-center justify-between p-2 rounded-md border hover-elevate"
+                    data-testid={`profile-item-${profile.id}`}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <button
+                        onClick={() => handleApplyProfile(profile)}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                        data-testid={`button-apply-profile-${profile.id}`}
+                      >
+                        <span className="text-sm font-medium truncate">{profile.name}</span>
+                        {profile.isShared && (
+                          <Badge variant="secondary" className="shrink-0">
+                            <Users className="w-3 h-3 mr-1" />
+                            Team
+                          </Badge>
+                        )}
+                        {profile.agentId === agentId && !profile.isShared && (
+                          <Badge variant="outline" className="shrink-0">
+                            <User className="w-3 h-3 mr-1" />
+                            Mine
+                          </Badge>
+                        )}
+                      </button>
+                    </div>
+                    {profile.agentId === agentId && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="shrink-0 h-8 w-8"
+                        onClick={() => deleteProfileMutation.mutate(profile.id)}
+                        disabled={deleteProfileMutation.isPending}
+                        data-testid={`button-delete-profile-${profile.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="team-presets" className="mt-0">
+            {isTeamPresetsLoading ? (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                Loading team presets...
+              </div>
+            ) : teamPresets.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-4">
+                No team presets available. Ask your admin to create one.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {teamPresets.map((preset) => (
+                  <div 
+                    key={preset.id}
+                    className="flex items-center justify-between p-2 rounded-md border hover-elevate"
+                    data-testid={`team-preset-${preset.id}`}
+                  >
+                    <button
+                      onClick={() => handleApplyTeamPreset(preset)}
+                      className="flex flex-col flex-1 min-w-0 text-left"
+                      data-testid={`button-apply-team-preset-${preset.id}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium truncate">{preset.name}</span>
+                        <Badge variant="default" className="shrink-0">
+                          <Building2 className="w-3 h-3 mr-1" />
+                          Team
+                        </Badge>
+                      </div>
+                      {preset.description && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {preset.description}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

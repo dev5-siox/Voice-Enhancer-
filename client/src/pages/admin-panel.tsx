@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AgentCard } from "@/components/agent-card";
+import { TeamPresetsManager } from "@/components/team-presets-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,8 @@ import {
   AudioWaveform,
   BarChart3,
   PieChart,
-  Sparkles
+  Sparkles,
+  Settings
 } from "lucide-react";
 import type { Agent, AgentStatusType } from "@shared/schema";
 
@@ -188,6 +190,10 @@ export default function AdminPanel() {
             <TabsTrigger value="analytics" data-testid="tab-analytics">
               <BarChart3 className="w-4 h-4 mr-2" />
               Analytics
+            </TabsTrigger>
+            <TabsTrigger value="settings" data-testid="tab-settings">
+              <Settings className="w-4 h-4 mr-2" />
+              Team Presets
             </TabsTrigger>
           </TabsList>
 
@@ -464,6 +470,10 @@ export default function AdminPanel() {
                 </Card>
               </>
             ) : null}
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
+            <TeamPresetsManager />
           </TabsContent>
         </Tabs>
       </div>
