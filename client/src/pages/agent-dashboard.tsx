@@ -56,7 +56,7 @@ export default function AgentDashboard() {
   useEffect(() => {
     if (agentData) {
       setSettings(agentData.audioSettings);
-      setAgentStatus(agentData.status);
+      setAgentStatus(agentData.status as AgentStatusType);
       setAgentName(agentData.name);
     }
   }, [agentData]);
@@ -289,12 +289,17 @@ export default function AgentDashboard() {
           onSettingsChange={handleSettingsChange}
           isProcessing={audioProcessor.isProcessing}
           isInitialized={audioProcessor.isInitialized}
+          isRecording={audioProcessor.isRecording}
+          recordingDuration={audioProcessor.recordingDuration}
           inputLevel={audioProcessor.inputLevel}
           outputLevel={audioProcessor.outputLevel}
           latency={audioProcessor.latency}
           devices={audioProcessor.devices}
           onInitialize={handleInitialize}
           onStop={handleStop}
+          onStartRecording={audioProcessor.startRecording}
+          onStopRecording={audioProcessor.stopRecording}
+          onDownloadRecording={audioProcessor.downloadRecording}
           getAnalyserData={audioProcessor.getAnalyserData}
           error={audioProcessor.error}
         />

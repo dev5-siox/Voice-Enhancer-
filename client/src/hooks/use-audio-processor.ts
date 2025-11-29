@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { AudioSettings } from "@shared/schema";
+import type { AudioSettings, AccentPresetType } from "@shared/schema";
+import { accentPresetConfigs } from "@shared/schema";
 
 interface AudioDevice {
   deviceId: string;
@@ -10,22 +11,26 @@ interface AudioDevice {
 interface AudioProcessorState {
   isInitialized: boolean;
   isProcessing: boolean;
+  isRecording: boolean;
   inputLevel: number;
   outputLevel: number;
   latency: number;
   error: string | null;
   processedStreamId: string | null;
+  recordingDuration: number;
 }
 
 export function useAudioProcessor(settings: AudioSettings) {
   const [state, setState] = useState<AudioProcessorState>({
     isInitialized: false,
     isProcessing: false,
+    isRecording: false,
     inputLevel: 0,
     outputLevel: 0,
     latency: 0,
     error: null,
     processedStreamId: null,
+    recordingDuration: 0,
   });
 
   const [devices, setDevices] = useState<AudioDevice[]>([]);
@@ -41,10 +46,18 @@ export function useAudioProcessor(settings: AudioSettings) {
   const lowPassRef = useRef<BiquadFilterNode | null>(null);
   const highPassRef = useRef<BiquadFilterNode | null>(null);
   const notchFilterRef = useRef<BiquadFilterNode | null>(null);
-  const pitchShifterRef = useRef<OscillatorNode | null>(null);
+  const formantFilterRef = useRef<BiquadFilterNode | null>(null);
+  const clarityFilterRef = useRef<BiquadFilterNode | null>(null);
+  const normalizerRef = useRef<DynamicsCompressorNode | null>(null);
   const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const animationFrameRef = useRef<number>(0);
   const settingsRef = useRef<AudioSettings>(settings);
+  
+  // Recording
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingStartTimeRef = useRef<number>(0);
+  const recordingIntervalRef = useRef<number | null>(null);
 
   // Keep settings ref updated
   useEffect(() => {
@@ -135,6 +148,35 @@ export function useAudioProcessor(settings: AudioSettings) {
       noiseGate.release.value = 0.25;
       noiseGateRef.current = noiseGate;
 
+      // === VOICE MODIFICATION CHAIN ===
+
+      // Formant filter for accent modification (peaking filter to shape voice)
+      const formantFilter = audioContext.createBiquadFilter();
+      formantFilter.type = "peaking";
+      formantFilter.frequency.value = 1000; // Base formant frequency
+      formantFilter.Q.value = 1;
+      formantFilter.gain.value = 0;
+      formantFilterRef.current = formantFilter;
+
+      // === VOICE ENHANCEMENT CHAIN ===
+
+      // Clarity boost filter (presence boost around 3-5kHz)
+      const clarityFilter = audioContext.createBiquadFilter();
+      clarityFilter.type = "peaking";
+      clarityFilter.frequency.value = 4000;
+      clarityFilter.Q.value = 1.5;
+      clarityFilter.gain.value = 0;
+      clarityFilterRef.current = clarityFilter;
+
+      // Volume normalization compressor
+      const normalizer = audioContext.createDynamicsCompressor();
+      normalizer.threshold.value = -24;
+      normalizer.knee.value = 30;
+      normalizer.ratio.value = 4;
+      normalizer.attack.value = 0.003;
+      normalizer.release.value = 0.25;
+      normalizerRef.current = normalizer;
+
       // Output gain node
       const outputGain = audioContext.createGain();
       outputGain.gain.value = settingsRef.current.outputGain / 100;
@@ -151,19 +193,25 @@ export function useAudioProcessor(settings: AudioSettings) {
       destinationRef.current = destination;
       processedStreamRef.current = destination.stream;
 
-      // Connect the audio processing chain
-      // Source -> Input Gain -> High Pass -> Notch -> Low Pass -> Noise Gate -> Output Gain -> Analyser -> Destination
+      // Connect the full audio processing chain
+      // Source -> Input Gain -> High Pass -> Notch -> Low Pass -> Noise Gate -> 
+      // Formant Filter -> Clarity Filter -> Normalizer -> Output Gain -> Analyser -> Destination
       source.connect(gainNode);
       gainNode.connect(highPass);
       highPass.connect(notchFilter);
       notchFilter.connect(lowPass);
       lowPass.connect(noiseGate);
-      noiseGate.connect(outputGain);
+      noiseGate.connect(formantFilter);
+      formantFilter.connect(clarityFilter);
+      clarityFilter.connect(normalizer);
+      normalizer.connect(outputGain);
       outputGain.connect(analyser);
       analyser.connect(destination);
 
       // Apply initial settings
       applyNoiseReductionSettings(settingsRef.current);
+      applyAccentSettings(settingsRef.current);
+      applyEnhancementSettings(settingsRef.current);
 
       // Start level monitoring
       const updateLevels = () => {
@@ -196,7 +244,6 @@ export function useAudioProcessor(settings: AudioSettings) {
       await refreshDevices();
       
       console.log("VoicePro: Audio processing initialized. Processed stream ID:", destination.stream.id);
-      console.log("VoicePro: To use with RingCentral, select 'VoicePro Virtual Mic' as your input device, or use the processed stream programmatically.");
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to initialize audio";
@@ -234,10 +281,67 @@ export function useAudioProcessor(settings: AudioSettings) {
     }
   }, []);
 
+  // Apply accent/voice modification settings
+  const applyAccentSettings = useCallback((s: AudioSettings) => {
+    if (formantFilterRef.current && highPassRef.current && lowPassRef.current) {
+      if (s.accentModifierEnabled) {
+        const preset = accentPresetConfigs[s.accentPreset as AccentPresetType] || accentPresetConfigs.neutral;
+        
+        // Apply formant shift (adjust resonant frequency to shape voice character)
+        // Positive formant shift = brighter/more nasal, Negative = warmer/deeper
+        const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
+        const baseFormantFreq = 1000;
+        const shiftedFreq = baseFormantFreq * Math.pow(2, formantShift / 24); // Semitone-based shift
+        
+        formantFilterRef.current.frequency.value = Math.max(200, Math.min(4000, shiftedFreq));
+        formantFilterRef.current.Q.value = preset.resonanceQ;
+        formantFilterRef.current.gain.value = Math.abs(formantShift) * 0.3; // Subtle boost
+        
+        // Apply preset-specific filtering
+        if (!s.noiseReductionEnabled) {
+          // Only apply preset filters if noise reduction isn't already filtering
+          highPassRef.current.frequency.value = preset.highPassFreq;
+          lowPassRef.current.frequency.value = preset.lowPassFreq;
+        }
+      } else {
+        // Disable accent modification
+        formantFilterRef.current.gain.value = 0;
+        formantFilterRef.current.Q.value = 0.5;
+      }
+    }
+  }, []);
+
+  // Apply voice enhancement settings (clarity boost, volume normalization)
+  const applyEnhancementSettings = useCallback((s: AudioSettings) => {
+    if (clarityFilterRef.current && normalizerRef.current) {
+      // Apply clarity boost
+      const clarityBoost = s.clarityBoost || 0;
+      clarityFilterRef.current.gain.value = (clarityBoost / 100) * 6; // Up to 6dB boost
+      
+      // Apply volume normalization
+      if (s.volumeNormalization) {
+        normalizerRef.current.threshold.value = -24;
+        normalizerRef.current.ratio.value = 4;
+      } else {
+        normalizerRef.current.threshold.value = 0;
+        normalizerRef.current.ratio.value = 1; // Bypass
+      }
+    }
+  }, []);
+
   // Stop audio processing
   const stop = useCallback(() => {
+    // Stop recording if active
+    if (mediaRecorderRef.current && state.isRecording) {
+      mediaRecorderRef.current.stop();
+    }
+
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
     }
 
     if (streamRef.current) {
@@ -259,11 +363,83 @@ export function useAudioProcessor(settings: AudioSettings) {
       ...prev,
       isInitialized: false,
       isProcessing: false,
+      isRecording: false,
       inputLevel: 0,
       outputLevel: 0,
       processedStreamId: null,
+      recordingDuration: 0,
     }));
+  }, [state.isRecording]);
+
+  // Start recording
+  const startRecording = useCallback(() => {
+    if (!processedStreamRef.current) return;
+
+    recordedChunksRef.current = [];
+    const mediaRecorder = new MediaRecorder(processedStreamRef.current, {
+      mimeType: 'audio/webm;codecs=opus',
+    });
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunksRef.current.push(event.data);
+      }
+    };
+
+    mediaRecorder.start(1000); // Collect data every second
+    mediaRecorderRef.current = mediaRecorder;
+    recordingStartTimeRef.current = Date.now();
+
+    // Update recording duration
+    recordingIntervalRef.current = window.setInterval(() => {
+      const duration = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+      setState((prev) => ({ ...prev, recordingDuration: duration }));
+    }, 1000);
+
+    setState((prev) => ({ ...prev, isRecording: true, recordingDuration: 0 }));
   }, []);
+
+  // Stop recording and return blob
+  const stopRecording = useCallback((): Promise<Blob> => {
+    return new Promise((resolve) => {
+      if (!mediaRecorderRef.current) {
+        resolve(new Blob([]));
+        return;
+      }
+
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+        recordedChunksRef.current = [];
+        resolve(blob);
+      };
+
+      mediaRecorderRef.current.stop();
+      
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
+
+      setState((prev) => ({ ...prev, isRecording: false }));
+    });
+  }, []);
+
+  // Download recording
+  const downloadRecording = useCallback(async () => {
+    const blob = await stopRecording();
+    if (blob.size === 0) return null;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    a.href = url;
+    a.download = `voicepro-recording-${timestamp}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    return blob;
+  }, [stopRecording]);
 
   // Update input gain when settings change
   useEffect(() => {
@@ -290,6 +466,16 @@ export function useAudioProcessor(settings: AudioSettings) {
     applyNoiseReductionSettings(settings);
   }, [settings.noiseReductionEnabled, settings.noiseReductionLevel, applyNoiseReductionSettings, settings]);
 
+  // Update accent settings when they change
+  useEffect(() => {
+    applyAccentSettings(settings);
+  }, [settings.accentModifierEnabled, settings.accentPreset, settings.formantShift, applyAccentSettings, settings]);
+
+  // Update enhancement settings when they change
+  useEffect(() => {
+    applyEnhancementSettings(settings);
+  }, [settings.clarityBoost, settings.volumeNormalization, applyEnhancementSettings, settings]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -298,9 +484,6 @@ export function useAudioProcessor(settings: AudioSettings) {
   }, [stop]);
 
   // Get processed stream for output
-  // This is the filtered audio stream that can be used programmatically
-  // Note: Browser limitations prevent creating virtual audio devices
-  // For RingCentral integration, users need a virtual audio cable app
   const getProcessedStream = useCallback((): MediaStream | null => {
     return processedStreamRef.current;
   }, []);
@@ -331,6 +514,9 @@ export function useAudioProcessor(settings: AudioSettings) {
     getProcessedStream,
     getAnalyserData,
     enableMonitoring,
+    startRecording,
+    stopRecording,
+    downloadRecording,
   };
 }
 

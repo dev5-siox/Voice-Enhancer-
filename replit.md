@@ -4,8 +4,16 @@
 VoicePro is a browser-based companion application that provides real-time voice accent modification and background noise reduction for sales teams using RingCentral's web app for outbound calling. Designed to support up to 50 concurrent agents.
 
 ## Current State
-- **MVP Complete**: Full-featured audio processing application with agent dashboard and admin monitoring
+- **Phase 2 In Progress**: Database persistence, advanced presets, and voice enhancement features added
 - **Date**: November 29, 2025
+
+## Recent Changes
+- Added PostgreSQL database persistence (Drizzle ORM) replacing in-memory storage
+- Added advanced accent presets (British, Australian, Southern US, Midwest US, New York)
+- Added voice enhancement features (clarity boost, volume normalization)
+- Added formant shift control for accent modification
+- Added recording functionality to save processed audio sessions
+- Added custom profiles and team presets database tables for future features
 
 ## Project Architecture
 
