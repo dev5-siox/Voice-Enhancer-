@@ -14,16 +14,31 @@ export type AgentStatusType = typeof AgentStatus[keyof typeof AgentStatus];
 
 // Accent preset definitions
 export const AccentPreset = {
+  // Basic voice types
   NEUTRAL: "neutral",
   DEEPER: "deeper",
   HIGHER: "higher",
   WARM: "warm",
   CLEAR: "clear",
-  BRITISH: "british",
-  AUSTRALIAN: "australian",
+  // American regional accents
   SOUTHERN_US: "southern_us",
   MIDWEST_US: "midwest_us",
   NEW_YORK: "new_york",
+  CALIFORNIA: "california",
+  TEXAS: "texas",
+  BOSTON: "boston",
+  PACIFIC_NW: "pacific_nw",
+  MID_ATLANTIC: "mid_atlantic",
+  // International accents
+  BRITISH: "british",
+  AUSTRALIAN: "australian",
+  // Voice character/persona presets
+  AUTHORITATIVE: "authoritative",
+  FRIENDLY: "friendly",
+  CALM: "calm",
+  ENERGETIC: "energetic",
+  CONFIDENT: "confident",
+  PROFESSIONAL: "professional",
 } as const;
 
 export type AccentPresetType = typeof AccentPreset[keyof typeof AccentPreset];
@@ -34,8 +49,14 @@ export const audioSettingsSchema = z.object({
   noiseReductionLevel: z.number().min(0).max(100).default(50),
   accentModifierEnabled: z.boolean().default(false),
   accentPreset: z.enum([
+    // Basic
     "neutral", "deeper", "higher", "warm", "clear",
-    "british", "australian", "southern_us", "midwest_us", "new_york"
+    // American regional
+    "southern_us", "midwest_us", "new_york", "california", "texas", "boston", "pacific_nw", "mid_atlantic",
+    // International
+    "british", "australian",
+    // Voice character
+    "authoritative", "friendly", "calm", "energetic", "confident", "professional"
   ]).default("neutral"),
   pitchShift: z.number().min(-12).max(12).default(0),
   formantShift: z.number().min(-50).max(50).default(0),
@@ -193,6 +214,7 @@ export const accentPresetConfigs: Record<AccentPresetType, {
   lowPassFreq: number;
   resonanceQ: number;
 }> = {
+  // === BASIC VOICE TYPES ===
   neutral: { 
     pitchShift: 0, 
     formantShift: 0, 
@@ -233,22 +255,8 @@ export const accentPresetConfigs: Record<AccentPresetType, {
     lowPassFreq: 9000,
     resonanceQ: 0.5,
   },
-  british: { 
-    pitchShift: 1, 
-    formantShift: 8, 
-    description: "Crisp, articulate British inflection",
-    highPassFreq: 90,
-    lowPassFreq: 8500,
-    resonanceQ: 0.6,
-  },
-  australian: { 
-    pitchShift: 2, 
-    formantShift: 10, 
-    description: "Friendly Australian vocal pattern",
-    highPassFreq: 85,
-    lowPassFreq: 9000,
-    resonanceQ: 0.65,
-  },
+  
+  // === AMERICAN REGIONAL ACCENTS ===
   southern_us: { 
     pitchShift: -2, 
     formantShift: -8, 
@@ -272,5 +280,113 @@ export const accentPresetConfigs: Record<AccentPresetType, {
     highPassFreq: 95,
     lowPassFreq: 8500,
     resonanceQ: 0.55,
+  },
+  california: { 
+    pitchShift: 1, 
+    formantShift: 6, 
+    description: "Bright, relaxed California voice",
+    highPassFreq: 90,
+    lowPassFreq: 9500,
+    resonanceQ: 0.6,
+  },
+  texas: { 
+    pitchShift: -2, 
+    formantShift: -10, 
+    description: "Bold Texas twang",
+    highPassFreq: 60,
+    lowPassFreq: 6000,
+    resonanceQ: 0.9,
+  },
+  boston: { 
+    pitchShift: 0, 
+    formantShift: 8, 
+    description: "Classic Boston accent",
+    highPassFreq: 85,
+    lowPassFreq: 8000,
+    resonanceQ: 0.65,
+  },
+  pacific_nw: { 
+    pitchShift: 0, 
+    formantShift: 4, 
+    description: "Clean Pacific Northwest voice",
+    highPassFreq: 85,
+    lowPassFreq: 9000,
+    resonanceQ: 0.6,
+  },
+  mid_atlantic: { 
+    pitchShift: 0, 
+    formantShift: 5, 
+    description: "Polished Mid-Atlantic speech",
+    highPassFreq: 80,
+    lowPassFreq: 8500,
+    resonanceQ: 0.65,
+  },
+  
+  // === INTERNATIONAL ACCENTS ===
+  british: { 
+    pitchShift: 1, 
+    formantShift: 8, 
+    description: "Crisp, articulate British inflection",
+    highPassFreq: 90,
+    lowPassFreq: 8500,
+    resonanceQ: 0.6,
+  },
+  australian: { 
+    pitchShift: 2, 
+    formantShift: 10, 
+    description: "Friendly Australian vocal pattern",
+    highPassFreq: 85,
+    lowPassFreq: 9000,
+    resonanceQ: 0.65,
+  },
+  
+  // === VOICE CHARACTER/PERSONA PRESETS ===
+  authoritative: { 
+    pitchShift: -2, 
+    formantShift: -12, 
+    description: "Commanding, leadership presence",
+    highPassFreq: 55,
+    lowPassFreq: 5500,
+    resonanceQ: 0.85,
+  },
+  friendly: { 
+    pitchShift: 1, 
+    formantShift: 5, 
+    description: "Warm, approachable personality",
+    highPassFreq: 85,
+    lowPassFreq: 8500,
+    resonanceQ: 0.75,
+  },
+  calm: { 
+    pitchShift: -1, 
+    formantShift: -3, 
+    description: "Soothing, relaxed delivery",
+    highPassFreq: 70,
+    lowPassFreq: 7000,
+    resonanceQ: 0.95,
+  },
+  energetic: { 
+    pitchShift: 2, 
+    formantShift: 10, 
+    description: "Vibrant, enthusiastic tone",
+    highPassFreq: 100,
+    lowPassFreq: 10000,
+    resonanceQ: 0.5,
+  },
+  confident: { 
+    pitchShift: 0, 
+    formantShift: 2, 
+    description: "Self-assured, steady presence",
+    highPassFreq: 75,
+    lowPassFreq: 8000,
+    resonanceQ: 0.7,
+  },
+  professional: { 
+    pitchShift: 0, 
+    formantShift: 3, 
+    description: "Business-ready, polished delivery",
+    highPassFreq: 80,
+    lowPassFreq: 8500,
+    resonanceQ: 0.65,
   },
 };

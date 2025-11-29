@@ -47,7 +47,9 @@ interface AudioControlsProps {
 // Group presets by category
 const presetGroups = {
   "Basic": ["neutral", "deeper", "higher", "warm", "clear"],
-  "Regional": ["british", "australian", "southern_us", "midwest_us", "new_york"],
+  "American Accents": ["midwest_us", "california", "pacific_nw", "mid_atlantic", "southern_us", "texas", "new_york", "boston"],
+  "International": ["british", "australian"],
+  "Voice Character": ["professional", "confident", "authoritative", "friendly", "calm", "energetic"],
 };
 
 function formatDuration(seconds: number): string {
