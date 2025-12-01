@@ -62,8 +62,10 @@ export function useAudioProcessor(settings: AudioSettings) {
   const animationFrameRef = useRef<number>(0);
   const settingsRef = useRef<AudioSettings>(settings);
   
-  // Audio output element for routing to virtual cable
+  // Audio output element for routing to virtual cable (for RingCentral)
   const audioOutputRef = useRef<HTMLAudioElement | null>(null);
+  // Monitor output element for routing to speakers (so user can hear themselves)
+  const monitorOutputRef = useRef<HTMLAudioElement | null>(null);
   
   // Recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -283,37 +285,76 @@ export function useAudioProcessor(settings: AudioSettings) {
       
       console.log("VoicePro: Audio processing initialized. Processed stream ID:", destination.stream.id);
       
-      // AUTO-ENABLE OUTPUT: Route processed audio to system output immediately
-      // This ensures the processed audio is actually playing somewhere
+      // AUTO-ENABLE OUTPUT: Route processed audio to BOTH virtual cable AND speakers
+      // This ensures the user can HEAR their processed voice AND RingCentral receives it
       try {
-        if (!audioOutputRef.current) {
-          audioOutputRef.current = new Audio();
-          audioOutputRef.current.autoplay = true;
-        }
-        audioOutputRef.current.srcObject = destination.stream;
-        
-        // Try to auto-detect and select VB-Audio or BlackHole for optimal routing
         const deviceList = await navigator.mediaDevices.enumerateDevices();
         const outputDevices = deviceList.filter(d => d.kind === 'audiooutput');
+        
+        // Find virtual cable (VB-Audio / BlackHole) for RingCentral
         const virtualCable = outputDevices.find(d => 
           d.label.toLowerCase().includes('cable input') || 
           d.label.toLowerCase().includes('vb-audio') ||
           d.label.toLowerCase().includes('blackhole')
         );
         
+        // Find default output / speakers for user to hear themselves
+        const defaultOutput = outputDevices.find(d => 
+          d.deviceId === 'default' || 
+          d.label.toLowerCase().includes('speakers') ||
+          d.label.toLowerCase().includes('headphone')
+        ) || outputDevices[0];
+        
+        // 1. MONITOR OUTPUT - Always route to speakers so user can hear processed voice
+        if (!monitorOutputRef.current) {
+          monitorOutputRef.current = new Audio();
+          monitorOutputRef.current.autoplay = true;
+        }
+        monitorOutputRef.current.srcObject = destination.stream;
+        
+        // Try to set monitor to speakers/headphones (not virtual cable)
+        if (defaultOutput && 'setSinkId' in monitorOutputRef.current) {
+          try {
+            // Find a real speaker device (not virtual cable)
+            const realSpeaker = outputDevices.find(d => 
+              !d.label.toLowerCase().includes('cable') && 
+              !d.label.toLowerCase().includes('vb-audio') &&
+              !d.label.toLowerCase().includes('blackhole') &&
+              (d.label.toLowerCase().includes('speaker') || 
+               d.label.toLowerCase().includes('headphone') ||
+               d.deviceId === 'default')
+            );
+            if (realSpeaker) {
+              await (monitorOutputRef.current as any).setSinkId(realSpeaker.deviceId);
+              console.log("VoicePro: MONITOR output set to:", realSpeaker.label);
+            }
+          } catch (sinkErr) {
+            console.log("VoicePro: Using default output for monitor");
+          }
+        }
+        await monitorOutputRef.current.play();
+        console.log("VoicePro: MONITOR ENABLED - You can now hear your processed voice!");
+        
+        // 2. VIRTUAL CABLE OUTPUT - Route to VB-Audio/BlackHole for RingCentral
+        if (!audioOutputRef.current) {
+          audioOutputRef.current = new Audio();
+          audioOutputRef.current.autoplay = true;
+        }
+        audioOutputRef.current.srcObject = destination.stream;
+        
         if (virtualCable && 'setSinkId' in audioOutputRef.current) {
           try {
             await (audioOutputRef.current as any).setSinkId(virtualCable.deviceId);
-            console.log("VoicePro: Auto-selected virtual cable:", virtualCable.label);
+            console.log("VoicePro: Virtual cable output set to:", virtualCable.label);
             setState(prev => ({ ...prev, outputDeviceId: virtualCable.deviceId }));
           } catch (sinkErr) {
-            console.warn("VoicePro: Could not auto-select virtual cable:", sinkErr);
+            console.warn("VoicePro: Could not set virtual cable output:", sinkErr);
           }
         }
         
         await audioOutputRef.current.play();
         setState(prev => ({ ...prev, isOutputEnabled: true }));
-        console.log("VoicePro: Audio output auto-enabled - processed audio now playing to system output");
+        console.log("VoicePro: DUAL OUTPUT ENABLED - Monitor (speakers) + Virtual Cable (RingCentral)");
       } catch (outputErr) {
         console.warn("VoicePro: Could not auto-enable output:", outputErr);
       }
@@ -354,45 +395,63 @@ export function useAudioProcessor(settings: AudioSettings) {
     }
   }, []);
 
-  // Apply accent/voice modification settings - DRAMATICALLY ENHANCED
+  // Apply accent/voice modification settings - SUPER AGGRESSIVE for audible change
   const applyAccentSettings = useCallback((s: AudioSettings) => {
     const f1 = formantFilter1Ref.current;
     const f2 = formantFilter2Ref.current;
     const f3 = formantFilter3Ref.current;
     const vb = voiceBodyFilterRef.current;
+    const hp = highPassRef.current;
+    const lp = lowPassRef.current;
     
-    if (!f1 || !f2 || !f3 || !vb) return;
+    if (!f1 || !f2 || !f3 || !vb) {
+      console.log("VoicePro: Formant filters not ready yet");
+      return;
+    }
     
     if (s.accentModifierEnabled) {
       const preset = accentPresetConfigs[s.accentPreset as AccentPresetType] || accentPresetConfigs.neutral;
       const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
       const pitchShift = s.pitchShift !== undefined ? s.pitchShift : preset.pitchShift;
       
-      // Formant shift affects the voice character dramatically
-      // Positive = brighter/higher, Negative = darker/deeper
-      const shiftMultiplier = Math.pow(2, formantShift / 50); // More aggressive shift
+      console.log(`VoicePro: Applying voice mod - Preset: ${s.accentPreset}, FormantShift: ${formantShift}, PitchShift: ${pitchShift}`);
       
-      // F1 - Voice warmth/body (shift dramatically)
-      f1.frequency.value = Math.max(200, Math.min(800, 500 * shiftMultiplier));
-      f1.Q.value = 3;
-      f1.gain.value = formantShift < 0 ? Math.abs(formantShift) * 0.15 : -formantShift * 0.1;
+      // SUPER AGGRESSIVE formant shifting for AUDIBLE difference
+      // formantShift ranges from -50 to +50
+      const shiftFactor = formantShift / 25; // -2 to +2 range
       
-      // F2 - Voice brightness/nasality
-      f2.frequency.value = Math.max(800, Math.min(2500, 1500 * shiftMultiplier));
-      f2.Q.value = 2.5;
-      f2.gain.value = formantShift > 0 ? formantShift * 0.12 : -Math.abs(formantShift) * 0.08;
+      // F1 (500Hz) - Voice body/warmth - DRAMATIC changes
+      // Negative = boost lows for deeper voice, Positive = cut lows for thinner voice
+      f1.frequency.value = 500;
+      f1.Q.value = 4; // Higher Q = more resonant peak
+      f1.gain.value = -shiftFactor * 8; // Up to ±16dB change!
       
-      // F3 - Articulation/presence
-      f3.frequency.value = Math.max(2000, Math.min(4000, 2800 * shiftMultiplier));
-      f3.Q.value = 2;
-      f3.gain.value = formantShift * 0.08;
+      // F2 (1500Hz) - Voice character/nasality  
+      // Negative = warmer, Positive = brighter/nasal
+      f2.frequency.value = 1500;
+      f2.Q.value = 3;
+      f2.gain.value = shiftFactor * 6; // Up to ±12dB change
       
-      // Voice body - Low shelf for warmth or brightness
-      // Negative pitch/formant = boost lows (warmer), Positive = cut lows (brighter)
-      const bodyGain = -(pitchShift + formantShift) * 0.3;
-      vb.gain.value = Math.max(-12, Math.min(12, bodyGain));
+      // F3 (2800Hz) - Presence/articulation
+      f3.frequency.value = 2800;
+      f3.Q.value = 3;
+      f3.gain.value = shiftFactor * 5; // Up to ±10dB change
       
-      console.log(`VoicePro: Voice modifier applied - Preset: ${s.accentPreset}, Formant: ${formantShift}, Pitch: ${pitchShift}`);
+      // Voice body - Low shelf for MAJOR warmth/thinness change
+      // This is the most audible effect - shifts the entire low end
+      vb.frequency.value = 250;
+      const bodyGain = -(pitchShift + formantShift) / 3; // Combine both for shelf
+      vb.gain.value = Math.max(-18, Math.min(18, bodyGain)); // Up to ±18dB!
+      
+      // Also adjust the high/low pass filters for more dramatic effect
+      if (hp && lp) {
+        // Deeper voice = lower highpass (let more bass through), cut highs
+        // Higher voice = higher highpass (cut bass), let more highs through
+        hp.frequency.value = Math.max(50, Math.min(200, 80 - formantShift));
+        lp.frequency.value = Math.max(4000, Math.min(12000, 8000 + formantShift * 40));
+      }
+      
+      console.log(`VoicePro: Filters set - F1: ${f1.gain.value.toFixed(1)}dB, F2: ${f2.gain.value.toFixed(1)}dB, F3: ${f3.gain.value.toFixed(1)}dB, Body: ${vb.gain.value.toFixed(1)}dB`);
     } else {
       // Disable all voice modification - reset to neutral
       f1.gain.value = 0;
@@ -402,6 +461,14 @@ export function useAudioProcessor(settings: AudioSettings) {
       f1.Q.value = 1;
       f2.Q.value = 1;
       f3.Q.value = 1;
+      
+      // Reset filters
+      if (hp && lp) {
+        hp.frequency.value = 80;
+        lp.frequency.value = 8000;
+      }
+      
+      console.log("VoicePro: Voice modifier disabled");
     }
   }, []);
 
@@ -438,7 +505,11 @@ export function useAudioProcessor(settings: AudioSettings) {
       clearInterval(recordingIntervalRef.current);
     }
 
-    // Stop audio output
+    // Stop audio outputs (both monitor and virtual cable)
+    if (monitorOutputRef.current) {
+      monitorOutputRef.current.pause();
+      monitorOutputRef.current.srcObject = null;
+    }
     if (audioOutputRef.current) {
       audioOutputRef.current.pause();
       audioOutputRef.current.srcObject = null;
