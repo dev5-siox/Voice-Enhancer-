@@ -252,6 +252,21 @@ export function useAudioProcessor(settings: AudioSettings) {
       
       console.log("VoicePro: Audio processing initialized. Processed stream ID:", destination.stream.id);
       
+      // AUTO-ENABLE OUTPUT: Route processed audio to system output immediately
+      // This ensures the processed audio is actually playing somewhere
+      try {
+        if (!audioOutputRef.current) {
+          audioOutputRef.current = new Audio();
+          audioOutputRef.current.autoplay = true;
+        }
+        audioOutputRef.current.srcObject = destination.stream;
+        await audioOutputRef.current.play();
+        setState(prev => ({ ...prev, isOutputEnabled: true }));
+        console.log("VoicePro: Audio output auto-enabled - processed audio now playing to system output");
+      } catch (outputErr) {
+        console.warn("VoicePro: Could not auto-enable output:", outputErr);
+      }
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to initialize audio";
       setState((prev) => ({ ...prev, error: errorMessage }));

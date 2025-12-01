@@ -426,7 +426,7 @@ export function AudioControls({
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Cable className="w-4 h-4" />
-                Virtual Cable Output
+                Audio Output Routing
                 {isOutputEnabled ? (
                   <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-400">Active</Badge>
                 ) : (
@@ -437,13 +437,25 @@ export function AudioControls({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {isOutputEnabled && (
+                <div className="flex items-start gap-2 p-3 rounded-md bg-green-500/10 text-green-700 dark:text-green-300 text-sm">
+                  <Cable className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Processed audio is now active</p>
+                    <p className="text-xs mt-1 opacity-80">
+                      VoicePro is outputting your modified voice. Select "CABLE Input (VB-Audio)" below to route to RingCentral.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {!isOutputEnabled && (
                 <div className="flex items-start gap-2 p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm">
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-medium">Enable output to send audio to RingCentral</p>
+                    <p className="font-medium">Output not enabled</p>
                     <p className="text-xs mt-1 opacity-80">
-                      This routes processed audio through your system. Set your system output to VB-Audio CABLE Input first.
+                      Click the button below to start outputting processed audio.
                     </p>
                   </div>
                 </div>
@@ -451,12 +463,12 @@ export function AudioControls({
 
               {outputDevices.length > 0 && onSetOutputDevice && (
                 <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Output Device</Label>
+                  <Label className="text-sm font-medium">Route processed audio to:</Label>
                   <Select
                     value={outputDeviceId || "default"}
-                    onValueChange={(value) => {
+                    onValueChange={async (value) => {
                       if (value !== "default") {
-                        onSetOutputDevice(value);
+                        await onSetOutputDevice(value);
                       }
                     }}
                   >
@@ -464,16 +476,27 @@ export function AudioControls({
                       <SelectValue placeholder="Select output device" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">System Default Output</SelectItem>
-                      {outputDevices.map((device) => (
-                        <SelectItem key={device.deviceId} value={device.deviceId}>
-                          {device.label}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="default">System Default (Speakers)</SelectItem>
+                      {outputDevices.map((device) => {
+                        const isVirtualCable = device.label.toLowerCase().includes('cable') || 
+                                               device.label.toLowerCase().includes('blackhole') ||
+                                               device.label.toLowerCase().includes('vb-audio');
+                        return (
+                          <SelectItem key={device.deviceId} value={device.deviceId}>
+                            <div className="flex items-center gap-2">
+                              {isVirtualCable && <Cable className="w-3 h-3 text-green-500" />}
+                              <span className={isVirtualCable ? "font-medium text-green-600 dark:text-green-400" : ""}>
+                                {device.label}
+                              </span>
+                              {isVirtualCable && <Badge variant="secondary" className="text-xs">Recommended</Badge>}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Select "CABLE Input" (VB-Audio) to route to RingCentral
+                    For RingCentral: Select "CABLE Input" (VB-Audio) or "BlackHole" as output, then set that same device as your mic in RingCentral.
                   </p>
                 </div>
               )}
@@ -487,23 +510,26 @@ export function AudioControls({
                 {isOutputEnabled ? (
                   <>
                     <Cable className="w-4 h-4 mr-2" />
-                    Disable Output
+                    Disable Audio Output
                   </>
                 ) : (
                   <>
                     <Cable className="w-4 h-4 mr-2" />
-                    Enable Output to Virtual Cable
+                    Enable Audio Output
                   </>
                 )}
               </Button>
 
-              {isOutputEnabled && (
-                <div className="text-xs text-green-600 dark:text-green-400 text-center">
-                  Processed audio is now playing to your system output.
-                  <br />
-                  Ensure VB-Audio CABLE Input is your Windows default playback device.
-                </div>
-              )}
+              {/* Setup instructions */}
+              <div className="mt-4 p-3 rounded-md bg-muted/50 text-xs space-y-2">
+                <p className="font-medium">Setup for RingCentral:</p>
+                <ol className="list-decimal ml-4 space-y-1 text-muted-foreground">
+                  <li>Install VB-Audio Virtual Cable (Windows) or BlackHole (Mac)</li>
+                  <li>Select "CABLE Input" in the dropdown above</li>
+                  <li>In RingCentral, set your microphone to "CABLE Output"</li>
+                  <li>RingCentral will now receive your processed voice</li>
+                </ol>
+              </div>
             </div>
           </CardContent>
         </Card>
