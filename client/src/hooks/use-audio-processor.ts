@@ -395,7 +395,7 @@ export function useAudioProcessor(settings: AudioSettings) {
     }
   }, []);
 
-  // Apply accent/voice modification settings - SUPER AGGRESSIVE for audible change
+  // Apply accent/voice modification settings - EXTREME effects for obvious change
   const applyAccentSettings = useCallback((s: AudioSettings) => {
     const f1 = formantFilter1Ref.current;
     const f2 = formantFilter2Ref.current;
@@ -405,7 +405,7 @@ export function useAudioProcessor(settings: AudioSettings) {
     const lp = lowPassRef.current;
     
     if (!f1 || !f2 || !f3 || !vb) {
-      console.log("VoicePro: Formant filters not ready yet");
+      console.log("VoicePro: Formant filters not ready yet - start audio processing first!");
       return;
     }
     
@@ -414,61 +414,123 @@ export function useAudioProcessor(settings: AudioSettings) {
       const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
       const pitchShift = s.pitchShift !== undefined ? s.pitchShift : preset.pitchShift;
       
-      console.log(`VoicePro: Applying voice mod - Preset: ${s.accentPreset}, FormantShift: ${formantShift}, PitchShift: ${pitchShift}`);
+      console.log(`%cVoicePro: APPLYING VOICE MOD`, 'color: green; font-weight: bold');
+      console.log(`  Preset: ${s.accentPreset}, FormantShift: ${formantShift}, PitchShift: ${pitchShift}`);
       
-      // SUPER AGGRESSIVE formant shifting for AUDIBLE difference
+      // EXTREME formant shifting - these values will be VERY noticeable
       // formantShift ranges from -50 to +50
-      const shiftFactor = formantShift / 25; // -2 to +2 range
       
-      // F1 (500Hz) - Voice body/warmth - DRAMATIC changes
-      // Negative = boost lows for deeper voice, Positive = cut lows for thinner voice
-      f1.frequency.value = 500;
-      f1.Q.value = 4; // Higher Q = more resonant peak
-      f1.gain.value = -shiftFactor * 8; // Up to ±16dB change!
+      // For "deeper" voice (negative shift): Boost bass, cut highs, lower formants
+      // For "higher" voice (positive shift): Cut bass, boost highs, raise formants
       
-      // F2 (1500Hz) - Voice character/nasality  
-      // Negative = warmer, Positive = brighter/nasal
-      f2.frequency.value = 1500;
-      f2.Q.value = 3;
-      f2.gain.value = shiftFactor * 6; // Up to ±12dB change
-      
-      // F3 (2800Hz) - Presence/articulation
-      f3.frequency.value = 2800;
-      f3.Q.value = 3;
-      f3.gain.value = shiftFactor * 5; // Up to ±10dB change
-      
-      // Voice body - Low shelf for MAJOR warmth/thinness change
-      // This is the most audible effect - shifts the entire low end
-      vb.frequency.value = 250;
-      const bodyGain = -(pitchShift + formantShift) / 3; // Combine both for shelf
-      vb.gain.value = Math.max(-18, Math.min(18, bodyGain)); // Up to ±18dB!
-      
-      // Also adjust the high/low pass filters for more dramatic effect
-      if (hp && lp) {
-        // Deeper voice = lower highpass (let more bass through), cut highs
-        // Higher voice = higher highpass (cut bass), let more highs through
-        hp.frequency.value = Math.max(50, Math.min(200, 80 - formantShift));
-        lp.frequency.value = Math.max(4000, Math.min(12000, 8000 + formantShift * 40));
+      if (formantShift < 0) {
+        // DEEPER VOICE - make it sound like a big guy/monster
+        const intensity = Math.abs(formantShift) / 50; // 0 to 1
+        
+        // Massive bass boost at 200Hz
+        f1.type = "lowshelf";
+        f1.frequency.value = 200;
+        f1.gain.value = intensity * 15; // Up to +15dB bass boost!
+        
+        // Cut the mid frequencies to remove nasality
+        f2.type = "peaking";
+        f2.frequency.value = 1200;
+        f2.Q.value = 1;
+        f2.gain.value = -intensity * 8; // Cut mids
+        
+        // Cut highs for darker sound
+        f3.type = "highshelf";
+        f3.frequency.value = 3000;
+        f3.gain.value = -intensity * 12; // Cut highs significantly
+        
+        // Additional low boost
+        vb.type = "lowshelf";
+        vb.frequency.value = 300;
+        vb.gain.value = intensity * 12;
+        
+        // Cut high frequencies hard
+        if (lp) lp.frequency.value = 4000 + (1 - intensity) * 4000; // 4000-8000Hz
+        if (hp) hp.frequency.value = 50; // Let all bass through
+        
+      } else if (formantShift > 0) {
+        // HIGHER VOICE - make it sound thinner/brighter
+        const intensity = formantShift / 50; // 0 to 1
+        
+        // Cut bass significantly
+        f1.type = "lowshelf";
+        f1.frequency.value = 300;
+        f1.gain.value = -intensity * 15; // Cut bass hard
+        
+        // Boost upper mids for presence
+        f2.type = "peaking";
+        f2.frequency.value = 2500;
+        f2.Q.value = 1;
+        f2.gain.value = intensity * 8;
+        
+        // Boost highs for brightness
+        f3.type = "highshelf";
+        f3.frequency.value = 4000;
+        f3.gain.value = intensity * 10;
+        
+        // Cut lows more
+        vb.type = "highpass";
+        vb.frequency.value = 200 + intensity * 200;
+        vb.gain.value = 0;
+        
+        // Open up the high frequencies
+        if (lp) lp.frequency.value = 12000;
+        if (hp) hp.frequency.value = 100 + intensity * 150; // 100-250Hz
+        
+      } else {
+        // Neutral - minimal effect
+        f1.type = "peaking";
+        f1.frequency.value = 500;
+        f1.Q.value = 1;
+        f1.gain.value = 0;
+        
+        f2.type = "peaking";
+        f2.frequency.value = 1500;
+        f2.Q.value = 1;
+        f2.gain.value = 0;
+        
+        f3.type = "peaking";
+        f3.frequency.value = 2800;
+        f3.Q.value = 1;
+        f3.gain.value = 0;
+        
+        vb.type = "lowshelf";
+        vb.frequency.value = 250;
+        vb.gain.value = 0;
       }
       
-      console.log(`VoicePro: Filters set - F1: ${f1.gain.value.toFixed(1)}dB, F2: ${f2.gain.value.toFixed(1)}dB, F3: ${f3.gain.value.toFixed(1)}dB, Body: ${vb.gain.value.toFixed(1)}dB`);
+      console.log(`%cVoicePro: FILTERS ACTIVE`, 'color: blue; font-weight: bold');
+      console.log(`  F1: ${f1.type} @ ${f1.frequency.value}Hz, gain: ${f1.gain.value.toFixed(1)}dB`);
+      console.log(`  F2: ${f2.type} @ ${f2.frequency.value}Hz, gain: ${f2.gain.value.toFixed(1)}dB`);
+      console.log(`  F3: ${f3.type} @ ${f3.frequency.value}Hz, gain: ${f3.gain.value.toFixed(1)}dB`);
+      console.log(`  Body: ${vb.type} @ ${vb.frequency.value}Hz, gain: ${vb.gain.value.toFixed(1)}dB`);
+      
     } else {
-      // Disable all voice modification - reset to neutral
+      // Disable all voice modification - reset to flat
+      f1.type = "peaking";
       f1.gain.value = 0;
-      f2.gain.value = 0;
-      f3.gain.value = 0;
-      vb.gain.value = 0;
       f1.Q.value = 1;
+      
+      f2.type = "peaking";
+      f2.gain.value = 0;
       f2.Q.value = 1;
+      
+      f3.type = "peaking";
+      f3.gain.value = 0;
       f3.Q.value = 1;
       
-      // Reset filters
-      if (hp && lp) {
-        hp.frequency.value = 80;
-        lp.frequency.value = 8000;
-      }
+      vb.type = "lowshelf";
+      vb.gain.value = 0;
       
-      console.log("VoicePro: Voice modifier disabled");
+      // Reset filters
+      if (hp) hp.frequency.value = 80;
+      if (lp) lp.frequency.value = 8000;
+      
+      console.log("VoicePro: Voice modifier DISABLED - flat response");
     }
   }, []);
 
