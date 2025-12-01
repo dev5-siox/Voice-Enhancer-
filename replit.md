@@ -8,6 +8,12 @@ VoicePro is an audio processing application for sales teams using RingCentral fo
 - **Date**: December 1, 2025
 
 ## Recent Changes
+- **FIXED Voice Modification** (Dec 1, 2025): Complete overhaul of audio processing pipeline
+  - Added 4 formant filters (F1, F2, F3, voice body) for dramatic voice character changes
+  - Voice presets now produce audible differences (deeper, warmer, brighter, etc.)
+  - Auto-enables audio output when processing starts
+  - Auto-detects VB-Audio/BlackHole and routes to it automatically
+  - Improved UI with clearer output routing instructions
 - **Electron Desktop App**: Added full desktop application with native audio device control
 - Desktop app features: auto-detection of VB-Audio/BlackHole, one-click routing setup
 - Added ElectronAudioPanel component for desktop-specific controls

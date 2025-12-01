@@ -50,7 +50,12 @@ export function useAudioProcessor(settings: AudioSettings) {
   const lowPassRef = useRef<BiquadFilterNode | null>(null);
   const highPassRef = useRef<BiquadFilterNode | null>(null);
   const notchFilterRef = useRef<BiquadFilterNode | null>(null);
-  const formantFilterRef = useRef<BiquadFilterNode | null>(null);
+  // Multiple formant filters for voice character shaping (F1, F2, F3)
+  const formantFilter1Ref = useRef<BiquadFilterNode | null>(null);
+  const formantFilter2Ref = useRef<BiquadFilterNode | null>(null);
+  const formantFilter3Ref = useRef<BiquadFilterNode | null>(null);
+  // Voice body filter for warmth/brightness
+  const voiceBodyFilterRef = useRef<BiquadFilterNode | null>(null);
   const clarityFilterRef = useRef<BiquadFilterNode | null>(null);
   const normalizerRef = useRef<DynamicsCompressorNode | null>(null);
   const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
@@ -156,14 +161,37 @@ export function useAudioProcessor(settings: AudioSettings) {
       noiseGateRef.current = noiseGate;
 
       // === VOICE MODIFICATION CHAIN ===
+      // Multiple formant filters for dramatic voice character shaping
+      // F1 (300-800 Hz) - Controls warmth/body of voice
+      const formantFilter1 = audioContext.createBiquadFilter();
+      formantFilter1.type = "peaking";
+      formantFilter1.frequency.value = 500;
+      formantFilter1.Q.value = 2;
+      formantFilter1.gain.value = 0;
+      formantFilter1Ref.current = formantFilter1;
 
-      // Formant filter for accent modification (peaking filter to shape voice)
-      const formantFilter = audioContext.createBiquadFilter();
-      formantFilter.type = "peaking";
-      formantFilter.frequency.value = 1000; // Base formant frequency
-      formantFilter.Q.value = 1;
-      formantFilter.gain.value = 0;
-      formantFilterRef.current = formantFilter;
+      // F2 (800-2500 Hz) - Controls brightness/nasality
+      const formantFilter2 = audioContext.createBiquadFilter();
+      formantFilter2.type = "peaking";
+      formantFilter2.frequency.value = 1500;
+      formantFilter2.Q.value = 2;
+      formantFilter2.gain.value = 0;
+      formantFilter2Ref.current = formantFilter2;
+
+      // F3 (2500-3500 Hz) - Controls articulation clarity
+      const formantFilter3 = audioContext.createBiquadFilter();
+      formantFilter3.type = "peaking";
+      formantFilter3.frequency.value = 2800;
+      formantFilter3.Q.value = 2;
+      formantFilter3.gain.value = 0;
+      formantFilter3Ref.current = formantFilter3;
+
+      // Voice body filter - Shelving filter for overall warmth/brightness
+      const voiceBodyFilter = audioContext.createBiquadFilter();
+      voiceBodyFilter.type = "lowshelf";
+      voiceBodyFilter.frequency.value = 300;
+      voiceBodyFilter.gain.value = 0;
+      voiceBodyFilterRef.current = voiceBodyFilter;
 
       // === VOICE ENHANCEMENT CHAIN ===
 
@@ -202,14 +230,17 @@ export function useAudioProcessor(settings: AudioSettings) {
 
       // Connect the full audio processing chain
       // Source -> Input Gain -> High Pass -> Notch -> Low Pass -> Noise Gate -> 
-      // Formant Filter -> Clarity Filter -> Normalizer -> Output Gain -> Analyser -> Destination
+      // Voice Body -> F1 -> F2 -> F3 -> Clarity Filter -> Normalizer -> Output Gain -> Analyser -> Destination
       source.connect(gainNode);
       gainNode.connect(highPass);
       highPass.connect(notchFilter);
       notchFilter.connect(lowPass);
       lowPass.connect(noiseGate);
-      noiseGate.connect(formantFilter);
-      formantFilter.connect(clarityFilter);
+      noiseGate.connect(voiceBodyFilter);
+      voiceBodyFilter.connect(formantFilter1);
+      formantFilter1.connect(formantFilter2);
+      formantFilter2.connect(formantFilter3);
+      formantFilter3.connect(clarityFilter);
       clarityFilter.connect(normalizer);
       normalizer.connect(outputGain);
       outputGain.connect(analyser);
@@ -260,6 +291,26 @@ export function useAudioProcessor(settings: AudioSettings) {
           audioOutputRef.current.autoplay = true;
         }
         audioOutputRef.current.srcObject = destination.stream;
+        
+        // Try to auto-detect and select VB-Audio or BlackHole for optimal routing
+        const deviceList = await navigator.mediaDevices.enumerateDevices();
+        const outputDevices = deviceList.filter(d => d.kind === 'audiooutput');
+        const virtualCable = outputDevices.find(d => 
+          d.label.toLowerCase().includes('cable input') || 
+          d.label.toLowerCase().includes('vb-audio') ||
+          d.label.toLowerCase().includes('blackhole')
+        );
+        
+        if (virtualCable && 'setSinkId' in audioOutputRef.current) {
+          try {
+            await (audioOutputRef.current as any).setSinkId(virtualCable.deviceId);
+            console.log("VoicePro: Auto-selected virtual cable:", virtualCable.label);
+            setState(prev => ({ ...prev, outputDeviceId: virtualCable.deviceId }));
+          } catch (sinkErr) {
+            console.warn("VoicePro: Could not auto-select virtual cable:", sinkErr);
+          }
+        }
+        
         await audioOutputRef.current.play();
         setState(prev => ({ ...prev, isOutputEnabled: true }));
         console.log("VoicePro: Audio output auto-enabled - processed audio now playing to system output");
@@ -303,33 +354,54 @@ export function useAudioProcessor(settings: AudioSettings) {
     }
   }, []);
 
-  // Apply accent/voice modification settings
+  // Apply accent/voice modification settings - DRAMATICALLY ENHANCED
   const applyAccentSettings = useCallback((s: AudioSettings) => {
-    if (formantFilterRef.current && highPassRef.current && lowPassRef.current) {
-      if (s.accentModifierEnabled) {
-        const preset = accentPresetConfigs[s.accentPreset as AccentPresetType] || accentPresetConfigs.neutral;
-        
-        // Apply formant shift (adjust resonant frequency to shape voice character)
-        // Positive formant shift = brighter/more nasal, Negative = warmer/deeper
-        const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
-        const baseFormantFreq = 1000;
-        const shiftedFreq = baseFormantFreq * Math.pow(2, formantShift / 24); // Semitone-based shift
-        
-        formantFilterRef.current.frequency.value = Math.max(200, Math.min(4000, shiftedFreq));
-        formantFilterRef.current.Q.value = preset.resonanceQ;
-        formantFilterRef.current.gain.value = Math.abs(formantShift) * 0.3; // Subtle boost
-        
-        // Apply preset-specific filtering
-        if (!s.noiseReductionEnabled) {
-          // Only apply preset filters if noise reduction isn't already filtering
-          highPassRef.current.frequency.value = preset.highPassFreq;
-          lowPassRef.current.frequency.value = preset.lowPassFreq;
-        }
-      } else {
-        // Disable accent modification
-        formantFilterRef.current.gain.value = 0;
-        formantFilterRef.current.Q.value = 0.5;
-      }
+    const f1 = formantFilter1Ref.current;
+    const f2 = formantFilter2Ref.current;
+    const f3 = formantFilter3Ref.current;
+    const vb = voiceBodyFilterRef.current;
+    
+    if (!f1 || !f2 || !f3 || !vb) return;
+    
+    if (s.accentModifierEnabled) {
+      const preset = accentPresetConfigs[s.accentPreset as AccentPresetType] || accentPresetConfigs.neutral;
+      const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
+      const pitchShift = s.pitchShift !== undefined ? s.pitchShift : preset.pitchShift;
+      
+      // Formant shift affects the voice character dramatically
+      // Positive = brighter/higher, Negative = darker/deeper
+      const shiftMultiplier = Math.pow(2, formantShift / 50); // More aggressive shift
+      
+      // F1 - Voice warmth/body (shift dramatically)
+      f1.frequency.value = Math.max(200, Math.min(800, 500 * shiftMultiplier));
+      f1.Q.value = 3;
+      f1.gain.value = formantShift < 0 ? Math.abs(formantShift) * 0.15 : -formantShift * 0.1;
+      
+      // F2 - Voice brightness/nasality
+      f2.frequency.value = Math.max(800, Math.min(2500, 1500 * shiftMultiplier));
+      f2.Q.value = 2.5;
+      f2.gain.value = formantShift > 0 ? formantShift * 0.12 : -Math.abs(formantShift) * 0.08;
+      
+      // F3 - Articulation/presence
+      f3.frequency.value = Math.max(2000, Math.min(4000, 2800 * shiftMultiplier));
+      f3.Q.value = 2;
+      f3.gain.value = formantShift * 0.08;
+      
+      // Voice body - Low shelf for warmth or brightness
+      // Negative pitch/formant = boost lows (warmer), Positive = cut lows (brighter)
+      const bodyGain = -(pitchShift + formantShift) * 0.3;
+      vb.gain.value = Math.max(-12, Math.min(12, bodyGain));
+      
+      console.log(`VoicePro: Voice modifier applied - Preset: ${s.accentPreset}, Formant: ${formantShift}, Pitch: ${pitchShift}`);
+    } else {
+      // Disable all voice modification - reset to neutral
+      f1.gain.value = 0;
+      f2.gain.value = 0;
+      f3.gain.value = 0;
+      vb.gain.value = 0;
+      f1.Q.value = 1;
+      f2.Q.value = 1;
+      f3.Q.value = 1;
     }
   }, []);
 
@@ -366,6 +438,12 @@ export function useAudioProcessor(settings: AudioSettings) {
       clearInterval(recordingIntervalRef.current);
     }
 
+    // Stop audio output
+    if (audioOutputRef.current) {
+      audioOutputRef.current.pause();
+      audioOutputRef.current.srcObject = null;
+    }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -386,6 +464,8 @@ export function useAudioProcessor(settings: AudioSettings) {
       isInitialized: false,
       isProcessing: false,
       isRecording: false,
+      isOutputEnabled: false,
+      outputDeviceId: null,
       inputLevel: 0,
       outputLevel: 0,
       processedStreamId: null,
