@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Headphones, Info, Keyboard, User } from "lucide-react";
+import { SetupWizard } from "@/components/setup-wizard";
 import { apiRequest } from "@/lib/queryClient";
 import type { AudioSettings, AgentStatusType, Agent } from "@shared/schema";
 import { defaultAudioSettings } from "@shared/schema";
@@ -212,7 +213,14 @@ export default function AgentDashboard() {
               Manage your audio processing settings
             </p>
           </div>
-          <StatusBadge status={agentStatus} size="md" />
+          <div className="flex items-center gap-2">
+            <SetupWizard 
+              isProcessing={audioProcessor.isProcessing}
+              inputLevel={audioProcessor.inputLevel}
+              outputLevel={audioProcessor.outputLevel}
+            />
+            <StatusBadge status={agentStatus} size="md" />
+          </div>
         </div>
 
         {/* Call Status Card */}

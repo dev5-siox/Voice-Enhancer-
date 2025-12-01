@@ -373,47 +373,133 @@ Pie chart showing:
 - Stable internet connection for real-time sync
 - WebSocket support for live updates
 
-## RingCentral Integration
+## RingCentral Desktop App Integration
 
-VoicePro processes audio in your browser but cannot directly route audio to RingCentral due to browser security limitations. Web browsers cannot create virtual audio devices that appear in the system device list. To use processed audio with RingCentral, you'll need external software.
+VoicePro processes audio in your browser but cannot directly route audio to the RingCentral desktop app due to browser security limitations. Web browsers cannot create virtual audio devices that appear in the system device list. To use processed audio with RingCentral Desktop, you need virtual audio cable software that creates a bridge between the browser and the desktop app.
 
-### Option 1: Virtual Audio Cable (Recommended)
+### Step-by-Step Setup (Windows with VB-Audio)
 
-1. **Install virtual audio software**:
-   - Windows: [VB-Audio Virtual Cable](https://vb-audio.com/Cable/) (free)
-   - Mac: [BlackHole](https://existential.audio/blackhole/) (free)
-   - Linux: PulseAudio virtual sink (built-in)
+This is the recommended setup for Windows users with the RingCentral desktop app:
 
-2. **Configure your operating system**:
-   - In your OS sound settings, set the virtual cable as your default audio output device
-   - This ensures all audio (including VoicePro's processed output) routes through the virtual cable
-   - On Windows: Settings > Sound > Output device
-   - On Mac: System Preferences > Sound > Output
+**Step 1: Install VB-Audio Virtual Cable**
+1. Download from [vb-audio.com/Cable](https://vb-audio.com/Cable/) (free)
+2. Run the installer as Administrator
+3. Restart your computer after installation
+4. You'll now have a new audio device called "CABLE Input" and "CABLE Output"
 
-3. **Configure RingCentral**:
-   - Open RingCentral Settings > Audio
-   - Select the virtual cable as your microphone input
+**Step 2: Configure Windows Audio**
+1. Right-click the speaker icon in your taskbar → **Sound settings**
+2. Under **Output**, select **"CABLE Input (VB-Audio Virtual Cable)"** as your default output
+3. This routes all system audio (including VoicePro) through the virtual cable
 
-4. **Audio Flow**:
-   ```
-   Physical Mic → VoicePro (browser) → System Default Output → Virtual Cable → RingCentral
-   ```
+**Step 3: Configure RingCentral Desktop App**
+1. Open the RingCentral desktop application
+2. Go to **Settings** → **Audio**
+3. Under **Microphone**, select **"CABLE Output (VB-Audio Virtual Cable)"**
+4. Keep your headphones or speakers selected as the **Speaker** output so you can hear callers
 
-**Important**: VoicePro outputs processed audio to your system's default playback device. You must configure your OS to route that output through the virtual cable - this is an OS-level configuration, not a VoicePro setting.
+**Step 4: Configure VoicePro**
+1. Open VoicePro in Chrome browser
+2. Select your physical microphone as the input device
+3. Click **Start Audio Processing**
+4. Speak - you should see the waveform respond and hear your processed voice
 
-### Option 2: Hardware Loopback
+**Step 5: Test the Complete Flow**
+1. In RingCentral, go to Settings → Audio → Test your microphone
+2. Speak into your mic - RingCentral should show audio activity
+3. If you don't see activity, check the audio flow diagram below
+
+**Audio Flow Diagram**:
+```
+Your Physical Mic
+       ↓
+VoicePro (Chrome browser) - processes audio
+       ↓
+CABLE Input (VB-Audio) - virtual speaker that VoicePro outputs to
+       ↓
+CABLE Output (VB-Audio) - virtual mic that RingCentral reads from
+       ↓
+RingCentral Desktop App - uses as microphone input
+```
+
+### Step-by-Step Setup (Mac with BlackHole)
+
+**Step 1: Install BlackHole**
+1. Download from [existential.audio/blackhole](https://existential.audio/blackhole/) (free)
+2. Run the installer package
+3. Allow the extension in System Preferences → Security & Privacy if prompted
+4. You'll now have a new audio device called "BlackHole 2ch"
+
+**Step 2: Create a Multi-Output Device** (Required on Mac)
+1. Open **Audio MIDI Setup** (search in Spotlight)
+2. Click the **+** button at bottom left → **Create Multi-Output Device**
+3. Check BOTH **BlackHole 2ch** AND your headphones/speakers
+4. This device sends audio to both destinations simultaneously
+
+**Step 3: Configure macOS Audio**
+1. Go to **System Preferences** → **Sound** → **Output**
+2. Select the **Multi-Output Device** you just created
+3. VoicePro output now goes to both your headphones AND BlackHole
+4. Note: Volume control may be limited - adjust volume on your headphones directly
+
+**Step 4: Configure RingCentral Desktop App**
+1. Open RingCentral desktop application
+2. Go to **Settings** → **Audio**
+3. Under **Microphone**, select **"BlackHole 2ch"**
+4. Under **Speaker**, select your **headphones** (so you hear callers)
+
+**Step 5: Test the Setup**
+1. Open VoicePro, select your physical mic, start processing
+2. In RingCentral Settings → Audio, test your microphone
+3. You should see audio activity when you speak
+
+### Troubleshooting Virtual Audio Cable
+
+**RingCentral shows no audio input:**
+- Verify VoicePro is running and processing is active (waveform should be moving)
+- Check that your OS default output is set to the virtual cable
+- Restart RingCentral after changing audio settings
+- Try speaking louder - check VoicePro's Input Level meter
+
+**I can't hear my own voice or callers:**
+- On Windows: You need headphones connected to hear callers (the virtual cable is for routing, not listening)
+- On Mac: Make sure you created the Multi-Output Device correctly
+- Set RingCentral's Speaker output to your headphones, NOT the virtual cable
+
+**Audio is choppy or has high latency:**
+- Close unnecessary browser tabs and applications
+- Reduce VoicePro's processing features temporarily
+- Use Chrome browser for best performance
+- Check your CPU usage - audio processing needs resources
+
+**Virtual cable device not appearing:**
+- Windows: Run the VB-Audio installer as Administrator, restart computer
+- Mac: Check System Preferences → Security & Privacy for blocked installations
+- Try reinstalling the virtual audio cable software
+
+### Why This Setup Works
+
+The virtual audio cable creates a software-based audio pathway:
+1. **VoicePro** captures your microphone, processes the audio, and plays it to the system output
+2. **Virtual Cable** catches that output and makes it available as a virtual microphone
+3. **RingCentral** sees the virtual cable as a regular microphone and uses it for calls
+
+This means your processed voice (with noise reduction, voice modification, etc.) is what RingCentral transmits to callers.
+
+### Alternative: Hardware Loopback
 
 If you have a professional audio interface with loopback capability:
-1. Route VoicePro output to the loopback channel
-2. Select the loopback channel as mic input in RingCentral
+1. Set your audio interface as the system output
+2. Enable loopback on your interface
+3. Select the loopback channel as microphone in RingCentral
 
-### Option 3: Standalone Monitoring
+### Standalone Use (Without RingCentral)
 
 Even without RingCentral integration, VoicePro is valuable for:
-- Monitoring your audio quality in real-time
-- Visualizing noise levels before calls
+- Monitoring your audio quality in real-time before calls
+- Practicing with different voice presets
 - Recording sessions for personal review
-- Fine-tuning your voice settings
+- Fine-tuning your optimal voice settings
 
 ---
 
