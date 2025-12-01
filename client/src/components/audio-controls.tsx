@@ -1,4 +1,4 @@
-import { Mic, MicOff, Volume2, Settings2, Sparkles, Save, Circle } from "lucide-react";
+import { Mic, MicOff, Volume2, Settings2, Sparkles, Save, Circle, Cable, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -31,12 +31,17 @@ interface AudioControlsProps {
   isInitialized: boolean;
   isRecording?: boolean;
   recordingDuration?: number;
+  isOutputEnabled?: boolean;
+  outputDeviceId?: string | null;
   inputLevel: number;
   outputLevel: number;
   latency: number;
   devices: AudioDevice[];
   onInitialize: () => void;
   onStop: () => void;
+  onEnableOutput?: (deviceId?: string) => Promise<boolean>;
+  onDisableOutput?: () => void;
+  onSetOutputDevice?: (deviceId: string) => Promise<boolean>;
   onStartRecording?: () => void;
   onStopRecording?: () => Promise<Blob>;
   onDownloadRecording?: () => Promise<Blob | null>;
@@ -65,12 +70,17 @@ export function AudioControls({
   isInitialized,
   isRecording = false,
   recordingDuration = 0,
+  isOutputEnabled = false,
+  outputDeviceId,
   inputLevel,
   outputLevel,
   latency,
   devices,
   onInitialize,
   onStop,
+  onEnableOutput,
+  onDisableOutput,
+  onSetOutputDevice,
   onStartRecording,
   onStopRecording,
   onDownloadRecording,
@@ -78,6 +88,7 @@ export function AudioControls({
   error,
 }: AudioControlsProps) {
   const inputDevices = devices.filter((d) => d.kind === "audioinput");
+  const outputDevices = devices.filter((d) => d.kind === "audiooutput");
 
   return (
     <div className="space-y-4">
@@ -384,7 +395,7 @@ export function AudioControls({
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-medium flex items-center gap-2">
               <Settings2 className="w-4 h-4" />
-              Audio Device
+              Input Device
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -404,6 +415,96 @@ export function AudioControls({
                 ))}
               </SelectContent>
             </Select>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Virtual Cable Output - CRITICAL FOR RINGCENTRAL */}
+      {isInitialized && onEnableOutput && onDisableOutput && (
+        <Card className={isOutputEnabled ? "border-green-500/50" : "border-amber-500/50"}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
+                <Cable className="w-4 h-4" />
+                Virtual Cable Output
+                {isOutputEnabled ? (
+                  <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-400">Active</Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">Required</Badge>
+                )}
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {!isOutputEnabled && (
+                <div className="flex items-start gap-2 p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Enable output to send audio to RingCentral</p>
+                    <p className="text-xs mt-1 opacity-80">
+                      This routes processed audio through your system. Set your system output to VB-Audio CABLE Input first.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {outputDevices.length > 0 && onSetOutputDevice && (
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Output Device</Label>
+                  <Select
+                    value={outputDeviceId || "default"}
+                    onValueChange={(value) => {
+                      if (value !== "default") {
+                        onSetOutputDevice(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-output-device">
+                      <SelectValue placeholder="Select output device" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">System Default Output</SelectItem>
+                      {outputDevices.map((device) => (
+                        <SelectItem key={device.deviceId} value={device.deviceId}>
+                          {device.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Select "CABLE Input" (VB-Audio) to route to RingCentral
+                  </p>
+                </div>
+              )}
+
+              <Button
+                onClick={() => isOutputEnabled ? onDisableOutput() : onEnableOutput()}
+                variant={isOutputEnabled ? "outline" : "default"}
+                className="w-full"
+                data-testid="button-toggle-output"
+              >
+                {isOutputEnabled ? (
+                  <>
+                    <Cable className="w-4 h-4 mr-2" />
+                    Disable Output
+                  </>
+                ) : (
+                  <>
+                    <Cable className="w-4 h-4 mr-2" />
+                    Enable Output to Virtual Cable
+                  </>
+                )}
+              </Button>
+
+              {isOutputEnabled && (
+                <div className="text-xs text-green-600 dark:text-green-400 text-center">
+                  Processed audio is now playing to your system output.
+                  <br />
+                  Ensure VB-Audio CABLE Input is your Windows default playback device.
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

@@ -68,12 +68,13 @@ const windowsSteps: SetupStep[] = [
   },
   {
     id: "voicepro",
-    title: "Start VoicePro Processing",
-    description: "Select your physical mic and start processing",
+    title: "Start VoicePro and Enable Output",
+    description: "Process audio and route it to the virtual cable",
     details: [
       "In VoicePro, select your physical microphone (headset, USB mic, etc.)",
       "Click 'Start Audio Processing'",
-      "Speak - you should see the waveform respond"
+      "Scroll down and click 'Enable Output to Virtual Cable' button (CRITICAL!)",
+      "The Virtual Cable Output card should show 'Active' in green"
     ]
   },
   {
@@ -83,7 +84,7 @@ const windowsSteps: SetupStep[] = [
     details: [
       "In RingCentral Settings → Audio, click 'Test' for microphone",
       "Speak into your mic - you should see audio activity in RingCentral",
-      "If you see activity, setup is complete!"
+      "If no audio, make sure 'Enable Output to Virtual Cable' is clicked in VoicePro"
     ]
   }
 ];
@@ -136,12 +137,13 @@ const macSteps: SetupStep[] = [
   },
   {
     id: "voicepro",
-    title: "Start VoicePro Processing",
-    description: "Select your physical mic and start processing",
+    title: "Start VoicePro and Enable Output",
+    description: "Process audio and route it to the virtual device",
     details: [
       "In VoicePro, select your physical microphone",
       "Click 'Start Audio Processing'",
-      "Speak - you should see the waveform respond"
+      "Scroll down and click 'Enable Output to Virtual Cable' button (CRITICAL!)",
+      "The Virtual Cable Output card should show 'Active' in green"
     ]
   }
 ];

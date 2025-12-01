@@ -307,12 +307,17 @@ export default function AgentDashboard() {
           isInitialized={audioProcessor.isInitialized}
           isRecording={audioProcessor.isRecording}
           recordingDuration={audioProcessor.recordingDuration}
+          isOutputEnabled={audioProcessor.isOutputEnabled}
+          outputDeviceId={audioProcessor.outputDeviceId}
           inputLevel={audioProcessor.inputLevel}
           outputLevel={audioProcessor.outputLevel}
           latency={audioProcessor.latency}
           devices={audioProcessor.devices}
           onInitialize={handleInitialize}
           onStop={handleStop}
+          onEnableOutput={audioProcessor.enableOutput}
+          onDisableOutput={audioProcessor.disableOutput}
+          onSetOutputDevice={audioProcessor.setOutputDevice}
           onStartRecording={audioProcessor.startRecording}
           onStopRecording={audioProcessor.stopRecording}
           onDownloadRecording={audioProcessor.downloadRecording}

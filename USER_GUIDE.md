@@ -402,12 +402,14 @@ This is the recommended setup for Windows users with the RingCentral desktop app
 1. Open VoicePro in Chrome browser
 2. Select your physical microphone as the input device
 3. Click **Start Audio Processing**
-4. Speak - you should see the waveform respond and hear your processed voice
+4. **IMPORTANT: Scroll down and click "Enable Output to Virtual Cable" button**
+5. The Virtual Cable Output card should show "Active" in green
+6. Speak - you should see the waveform respond
 
 **Step 5: Test the Complete Flow**
 1. In RingCentral, go to Settings → Audio → Test your microphone
 2. Speak into your mic - RingCentral should show audio activity
-3. If you don't see activity, check the audio flow diagram below
+3. If you don't see activity, make sure "Enable Output to Virtual Cable" is clicked in VoicePro
 
 **Audio Flow Diagram**:
 ```
@@ -448,16 +450,23 @@ RingCentral Desktop App - uses as microphone input
 3. Under **Microphone**, select **"BlackHole 2ch"**
 4. Under **Speaker**, select your **headphones** (so you hear callers)
 
-**Step 5: Test the Setup**
-1. Open VoicePro, select your physical mic, start processing
-2. In RingCentral Settings → Audio, test your microphone
-3. You should see audio activity when you speak
+**Step 5: Configure VoicePro**
+1. Open VoicePro, select your physical microphone
+2. Click **Start Audio Processing**
+3. **IMPORTANT: Scroll down and click "Enable Output to Virtual Cable" button**
+4. The Virtual Cable Output card should show "Active" in green
+
+**Step 6: Test the Setup**
+1. In RingCentral Settings → Audio, test your microphone
+2. You should see audio activity when you speak
+3. If no audio, make sure "Enable Output to Virtual Cable" is clicked in VoicePro
 
 ### Troubleshooting Virtual Audio Cable
 
 **RingCentral shows no audio input:**
-- Verify VoicePro is running and processing is active (waveform should be moving)
-- Check that your OS default output is set to the virtual cable
+- **Most common issue:** Make sure you clicked "Enable Output to Virtual Cable" in VoicePro
+- Verify VoicePro shows "Virtual Cable Output: Active" in green
+- Check that your OS default output is set to the virtual cable (CABLE Input)
 - Restart RingCentral after changing audio settings
 - Try speaking louder - check VoicePro's Input Level meter
 

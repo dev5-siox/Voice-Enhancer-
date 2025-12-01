@@ -12,12 +12,14 @@ interface AudioProcessorState {
   isInitialized: boolean;
   isProcessing: boolean;
   isRecording: boolean;
+  isOutputEnabled: boolean;
   inputLevel: number;
   outputLevel: number;
   latency: number;
   error: string | null;
   processedStreamId: string | null;
   recordingDuration: number;
+  outputDeviceId: string | null;
 }
 
 export function useAudioProcessor(settings: AudioSettings) {
@@ -25,12 +27,14 @@ export function useAudioProcessor(settings: AudioSettings) {
     isInitialized: false,
     isProcessing: false,
     isRecording: false,
+    isOutputEnabled: false,
     inputLevel: 0,
     outputLevel: 0,
     latency: 0,
     error: null,
     processedStreamId: null,
     recordingDuration: 0,
+    outputDeviceId: null,
   });
 
   const [devices, setDevices] = useState<AudioDevice[]>([]);
@@ -52,6 +56,9 @@ export function useAudioProcessor(settings: AudioSettings) {
   const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const animationFrameRef = useRef<number>(0);
   const settingsRef = useRef<AudioSettings>(settings);
+  
+  // Audio output element for routing to virtual cable
+  const audioOutputRef = useRef<HTMLAudioElement | null>(null);
   
   // Recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -488,12 +495,70 @@ export function useAudioProcessor(settings: AudioSettings) {
     return processedStreamRef.current;
   }, []);
   
-  // Play processed audio through speakers for monitoring
-  const enableMonitoring = useCallback(async () => {
-    if (processedStreamRef.current && audioContextRef.current) {
-      const monitorSource = audioContextRef.current.createMediaStreamSource(processedStreamRef.current);
-      monitorSource.connect(audioContextRef.current.destination);
+  // Enable audio output to a specific device (for virtual cable routing)
+  const enableOutput = useCallback(async (deviceId?: string) => {
+    if (!processedStreamRef.current) {
+      console.error("VoicePro: No processed stream available");
+      return false;
     }
+
+    try {
+      // Create or reuse audio element
+      if (!audioOutputRef.current) {
+        audioOutputRef.current = new Audio();
+        audioOutputRef.current.autoplay = true;
+      }
+
+      // Set the processed stream as source
+      audioOutputRef.current.srcObject = processedStreamRef.current;
+
+      // Try to set output device if specified and browser supports it
+      if (deviceId && 'setSinkId' in audioOutputRef.current) {
+        try {
+          await (audioOutputRef.current as any).setSinkId(deviceId);
+          console.log("VoicePro: Audio output set to device:", deviceId);
+          setState(prev => ({ ...prev, outputDeviceId: deviceId }));
+        } catch (sinkErr) {
+          console.warn("VoicePro: Could not set output device, using default:", sinkErr);
+        }
+      }
+
+      // Start playback
+      await audioOutputRef.current.play();
+      
+      setState(prev => ({ ...prev, isOutputEnabled: true }));
+      console.log("VoicePro: Audio output enabled - processed audio now playing to system output");
+      return true;
+    } catch (err) {
+      console.error("VoicePro: Failed to enable audio output:", err);
+      return false;
+    }
+  }, []);
+
+  // Disable audio output
+  const disableOutput = useCallback(() => {
+    if (audioOutputRef.current) {
+      audioOutputRef.current.pause();
+      audioOutputRef.current.srcObject = null;
+    }
+    setState(prev => ({ ...prev, isOutputEnabled: false, outputDeviceId: null }));
+    console.log("VoicePro: Audio output disabled");
+  }, []);
+
+  // Change output device
+  const setOutputDevice = useCallback(async (deviceId: string) => {
+    if (audioOutputRef.current && 'setSinkId' in audioOutputRef.current) {
+      try {
+        await (audioOutputRef.current as any).setSinkId(deviceId);
+        setState(prev => ({ ...prev, outputDeviceId: deviceId }));
+        console.log("VoicePro: Output device changed to:", deviceId);
+        return true;
+      } catch (err) {
+        console.error("VoicePro: Failed to change output device:", err);
+        return false;
+      }
+    }
+    return false;
   }, []);
 
   // Get analyser data for visualization
@@ -513,7 +578,9 @@ export function useAudioProcessor(settings: AudioSettings) {
     refreshDevices,
     getProcessedStream,
     getAnalyserData,
-    enableMonitoring,
+    enableOutput,
+    disableOutput,
+    setOutputDevice,
     startRecording,
     stopRecording,
     downloadRecording,
