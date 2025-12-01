@@ -1,21 +1,19 @@
 # VoicePro - Audio Processing for Sales Teams
 
 ## Overview
-VoicePro is a browser-based companion application that provides real-time voice accent modification and background noise reduction for sales teams using RingCentral's web app for outbound calling. Designed to support up to 50 concurrent agents.
+VoicePro is an audio processing application for sales teams using RingCentral for outbound calling. Available as both a web app and Electron desktop app. The desktop app provides guaranteed RingCentral integration with native audio device routing. Designed to support up to 50 concurrent agents.
 
 ## Current State
-- **Phase 2 Complete**: All features implemented and tested
-- **Date**: November 29, 2025
+- **Phase 3 Complete**: Desktop app with native audio routing
+- **Date**: December 1, 2025
 
 ## Recent Changes
-- Added PostgreSQL database persistence (Drizzle ORM) replacing in-memory storage
-- Added advanced accent presets (British, Australian, Southern US, Midwest US, New York)
-- Added voice enhancement features (clarity boost, volume normalization)
-- Added formant shift control for accent modification
-- Added recording functionality to save processed audio sessions
-- Added custom profile management for agents (save/apply/delete personal profiles, share with team)
-- Added team preset management for admins (create/edit/delete team-wide presets with active/inactive toggle)
-- Added admin analytics dashboard with feature usage metrics, preset popularity, and agent status distribution
+- **Electron Desktop App**: Added full desktop application with native audio device control
+- Desktop app features: auto-detection of VB-Audio/BlackHole, one-click routing setup
+- Added ElectronAudioPanel component for desktop-specific controls
+- Added use-electron hook for frontend-backend IPC communication
+- Browser version now shows prompt recommending desktop app for reliable RingCentral integration
+- Updated Setup Wizard and USER_GUIDE with improved instructions
 
 ## Project Architecture
 
@@ -69,16 +67,20 @@ VoicePro is a browser-based companion application that provides real-time voice 
 6. Admins can monitor all agents in real-time from the Team Monitor view
 
 ## Technical Limitations
-- **Browser Audio Routing**: Web browsers cannot create virtual audio devices that appear in the system device list. For full RingCentral integration, users would need:
-  - A virtual audio cable application (e.g., VB-Audio, Blackhole for Mac)
-  - Route VoicePro output to the virtual device
-  - Select the virtual device as mic input in RingCentral
+- **Browser Audio Routing**: Web browsers cannot create virtual audio devices that appear in the system device list. The desktop app solves this with native device control.
 - **Voice Modification**: Current implementation uses pitch shifting via filter adjustments. Advanced formant-based accent modification would require additional DSP libraries.
 
 ## Integration Options
-1. **Standalone Mode**: Use VoicePro to monitor and visualize audio processing
-2. **Virtual Cable Mode**: Combine with VB-Audio or similar to route processed audio to other apps
-3. **Programmatic Mode**: Access `processedStream` via the hook for custom integrations
+1. **Desktop App (Recommended)**: Use VoicePro Desktop for guaranteed RingCentral integration with auto-configuration
+2. **Browser + Virtual Cable**: Use browser version with manual VB-Audio/BlackHole setup (less reliable)
+3. **Standalone Mode**: Use VoicePro to monitor and visualize audio processing
+
+## Electron Desktop App
+The desktop app provides native audio device control:
+- Auto-detects VB-Audio (Windows) and BlackHole (Mac)
+- One-click "Auto-Configure" sets up routing automatically
+- Direct device selection without browser limitations
+- See `ELECTRON_README.md` for development and build instructions
 
 ## File Structure
 ```

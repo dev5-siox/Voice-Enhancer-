@@ -4,13 +4,15 @@ import { AudioControls } from "@/components/audio-controls";
 import { CustomProfiles } from "@/components/custom-profiles";
 import { CallTimer } from "@/components/call-timer";
 import { StatusBadge } from "@/components/status-badge";
+import { ElectronAudioPanel } from "@/components/electron-audio-panel";
 import { useAudioProcessor } from "@/hooks/use-audio-processor";
+import { useElectron, isRunningInElectron } from "@/hooks/use-electron";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Headphones, Info, Keyboard, User } from "lucide-react";
+import { Headphones, Info, Keyboard, User, Monitor } from "lucide-react";
 import { SetupWizard } from "@/components/setup-wizard";
 import { apiRequest } from "@/lib/queryClient";
 import type { AudioSettings, AgentStatusType, Agent } from "@shared/schema";
@@ -47,6 +49,7 @@ export default function AgentDashboard() {
   const [setupName, setSetupName] = useState("");
 
   const audioProcessor = useAudioProcessor(settings);
+  const { isElectron, platform, appVersion } = useElectron();
 
   // Fetch current agent data if we have an ID
   const { data: agentData } = useQuery<Agent>({
@@ -324,6 +327,30 @@ export default function AgentDashboard() {
           getAnalyserData={audioProcessor.getAnalyserData}
           error={audioProcessor.error}
         />
+
+        {/* Electron Desktop Audio Routing */}
+        {isElectron && (
+          <ElectronAudioPanel
+            isProcessing={audioProcessor.isProcessing}
+            currentInputDeviceId={settings.inputDeviceId}
+          />
+        )}
+
+        {/* Desktop App Banner (when in browser) */}
+        {!isElectron && audioProcessor.isProcessing && (
+          <Card className="bg-blue-500/5 border-blue-500/20">
+            <CardContent className="py-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <Monitor className="w-4 h-4 text-blue-500" />
+                  <span className="text-muted-foreground">
+                    For guaranteed RingCentral integration, use the <span className="font-medium text-foreground">VoicePro Desktop App</span>
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Custom Profiles */}
         {agentId && (
