@@ -526,25 +526,36 @@ export function useAudioProcessor(settings: AudioSettings) {
       console.log(`  Body: ${vb.type} @ ${vb.frequency.value}Hz, gain: ${vb.gain.value.toFixed(1)}dB`);
       
     } else {
-      // Disable all voice modification - reset to flat
-      f1.type = "peaking";
-      f1.gain.value = 0;
-      f1.Q.value = 1;
+      // Disable all voice modification - reset formant filters to flat
+      // CRITICAL FIX: Only reset formant filters, NOT highPass/lowPass
+      // Those filters are owned by noise reduction system!
+      if (f1) {
+        f1.type = "peaking";
+        f1.gain.value = 0;
+        f1.Q.value = 1;
+      }
       
-      f2.type = "peaking";
-      f2.gain.value = 0;
-      f2.Q.value = 1;
+      if (f2) {
+        f2.type = "peaking";
+        f2.gain.value = 0;
+        f2.Q.value = 1;
+      }
       
-      f3.type = "peaking";
-      f3.gain.value = 0;
-      f3.Q.value = 1;
+      if (f3) {
+        f3.type = "peaking";
+        f3.gain.value = 0;
+        f3.Q.value = 1;
+      }
       
-      vb.type = "lowshelf";
-      vb.gain.value = 0;
+      if (vb) {
+        vb.type = "lowshelf";
+        vb.gain.value = 0;
+      }
       
-      // Reset filters
-      if (hp) hp.frequency.value = 80;
-      if (lp) lp.frequency.value = 8000;
+      // DO NOT touch hp and lp here - they belong to noise reduction!
+      // These lines were causing noise reduction to stop working:
+      // if (hp) hp.frequency.value = 80;    // ❌ REMOVED
+      // if (lp) lp.frequency.value = 8000;  // ❌ REMOVED
       
       console.log("VoxFilter: Voice modifier DISABLED - flat response");
     }
