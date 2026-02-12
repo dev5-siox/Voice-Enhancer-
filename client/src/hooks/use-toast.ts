@@ -56,12 +56,16 @@ interface State {
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 const addToRemoveQueue = (toastId: string) => {
+  // CRITICAL FIX: Clear existing timeout if present
   if (toastTimeouts.has(toastId)) {
-    return
+    const existingTimeout = toastTimeouts.get(toastId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
   }
 
   const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
+    toastTimeouts.delete(toastId); // Clean up Map entry
     dispatch({
       type: "REMOVE_TOAST",
       toastId: toastId,
@@ -69,6 +73,15 @@ const addToRemoveQueue = (toastId: string) => {
   }, TOAST_REMOVE_DELAY)
 
   toastTimeouts.set(toastId, timeout)
+}
+
+// CRITICAL FIX: Add cleanup for dismissed toasts
+const removeFromQueue = (toastId: string) => {
+  const timeout = toastTimeouts.get(toastId);
+  if (timeout) {
+    clearTimeout(timeout);
+    toastTimeouts.delete(toastId); // Clean up Map entry
+  }
 }
 
 export const reducer = (state: State, action: Action): State => {
@@ -112,8 +125,16 @@ export const reducer = (state: State, action: Action): State => {
         ),
       }
     }
-    case "REMOVE_TOAST":
+    case "REMOVE_TOAST": {
+      // CRITICAL FIX: Clean up timeout when removing toast
+      if (action.toastId) {
+        removeFromQueue(action.toastId);
+      }
+      
       if (action.toastId === undefined) {
+        // Clear all timeouts
+        toastTimeouts.forEach((timeout) => clearTimeout(timeout));
+        toastTimeouts.clear();
         return {
           ...state,
           toasts: [],
@@ -123,6 +144,7 @@ export const reducer = (state: State, action: Action): State => {
         ...state,
         toasts: state.toasts.filter((t) => t.id !== action.toastId),
       }
+    }
   }
 }
 

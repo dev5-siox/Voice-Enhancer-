@@ -329,4 +329,9 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Use memory storage if no database URL is configured
+import { MemoryStorage } from "./memory-storage";
+
+export const storage = process.env.DATABASE_URL 
+  ? new DatabaseStorage() 
+  : new MemoryStorage();

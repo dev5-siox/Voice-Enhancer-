@@ -92,12 +92,28 @@ export function useAudioProcessor(settings: AudioSettings) {
       setDevices(audioDevices);
     } catch (err) {
       console.error("Failed to enumerate devices:", err);
+      setState((prev) => ({ 
+        ...prev, 
+        error: "Could not access audio devices. Please check permissions." 
+      }));
     }
   }, []);
 
   // Initialize audio context and get user media
   const initialize = useCallback(async () => {
     try {
+      // CRITICAL FIX: Prevent concurrent initializations
+      if (audioContextRef.current) {
+        console.warn("VoicePro: Already initialized. Call stop() first.");
+        return;
+      }
+
+      // Cancel any existing animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = 0;
+      }
+
       setState((prev) => ({ ...prev, error: null }));
       
       // Request microphone access with noise suppression handled by Web Audio
@@ -556,25 +572,36 @@ export function useAudioProcessor(settings: AudioSettings) {
   const stop = useCallback(() => {
     // Stop recording if active
     if (mediaRecorderRef.current && state.isRecording) {
-      mediaRecorderRef.current.stop();
+      try {
+        mediaRecorderRef.current.ondataavailable = null;
+        mediaRecorderRef.current.onstop = null;
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current = null;
+      } catch (error) {
+        console.error("Error stopping media recorder:", error);
+      }
     }
 
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = 0;
     }
 
     if (recordingIntervalRef.current) {
       clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
     }
 
     // Stop audio outputs (both monitor and virtual cable)
     if (monitorOutputRef.current) {
       monitorOutputRef.current.pause();
       monitorOutputRef.current.srcObject = null;
+      monitorOutputRef.current = null;
     }
     if (audioOutputRef.current) {
       audioOutputRef.current.pause();
       audioOutputRef.current.srcObject = null;
+      audioOutputRef.current = null;
     }
 
     if (streamRef.current) {
@@ -587,8 +614,78 @@ export function useAudioProcessor(settings: AudioSettings) {
       processedStreamRef.current = null;
     }
 
+    // CRITICAL FIX: Disconnect all audio nodes before closing context
+    // This prevents memory leaks
+    try {
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.disconnect();
+        sourceNodeRef.current = null;
+      }
+      if (gainNodeRef.current) {
+        gainNodeRef.current.disconnect();
+        gainNodeRef.current = null;
+      }
+      if (highPassRef.current) {
+        highPassRef.current.disconnect();
+        highPassRef.current = null;
+      }
+      if (lowPassRef.current) {
+        lowPassRef.current.disconnect();
+        lowPassRef.current = null;
+      }
+      if (notchFilterRef.current) {
+        notchFilterRef.current.disconnect();
+        notchFilterRef.current = null;
+      }
+      if (noiseGateRef.current) {
+        noiseGateRef.current.disconnect();
+        noiseGateRef.current = null;
+      }
+      if (formantFilter1Ref.current) {
+        formantFilter1Ref.current.disconnect();
+        formantFilter1Ref.current = null;
+      }
+      if (formantFilter2Ref.current) {
+        formantFilter2Ref.current.disconnect();
+        formantFilter2Ref.current = null;
+      }
+      if (formantFilter3Ref.current) {
+        formantFilter3Ref.current.disconnect();
+        formantFilter3Ref.current = null;
+      }
+      if (voiceBodyFilterRef.current) {
+        voiceBodyFilterRef.current.disconnect();
+        voiceBodyFilterRef.current = null;
+      }
+      if (clarityFilterRef.current) {
+        clarityFilterRef.current.disconnect();
+        clarityFilterRef.current = null;
+      }
+      if (normalizerRef.current) {
+        normalizerRef.current.disconnect();
+        normalizerRef.current = null;
+      }
+      if (outputGainNodeRef.current) {
+        outputGainNodeRef.current.disconnect();
+        outputGainNodeRef.current = null;
+      }
+      if (analyserNodeRef.current) {
+        analyserNodeRef.current.disconnect();
+        analyserNodeRef.current = null;
+      }
+      if (destinationRef.current) {
+        destinationRef.current.disconnect();
+        destinationRef.current = null;
+      }
+    } catch (error) {
+      console.error("Error disconnecting audio nodes:", error);
+    }
+
+    // NOW close the audio context
     if (audioContextRef.current) {
-      audioContextRef.current.close();
+      audioContextRef.current.close().catch((error) => {
+        console.error("Error closing audio context:", error);
+      });
       audioContextRef.current = null;
     }
 
@@ -699,17 +796,17 @@ export function useAudioProcessor(settings: AudioSettings) {
   // Update noise reduction when settings change
   useEffect(() => {
     applyNoiseReductionSettings(settings);
-  }, [settings.noiseReductionEnabled, settings.noiseReductionLevel, applyNoiseReductionSettings, settings]);
+  }, [settings.noiseReductionEnabled, settings.noiseReductionLevel, applyNoiseReductionSettings]);
 
   // Update accent settings when they change
   useEffect(() => {
     applyAccentSettings(settings);
-  }, [settings.accentModifierEnabled, settings.accentPreset, settings.formantShift, applyAccentSettings, settings]);
+  }, [settings.accentModifierEnabled, settings.accentPreset, settings.formantShift, applyAccentSettings]);
 
   // Update enhancement settings when they change
   useEffect(() => {
     applyEnhancementSettings(settings);
-  }, [settings.clarityBoost, settings.volumeNormalization, applyEnhancementSettings, settings]);
+  }, [settings.clarityBoost, settings.volumeNormalization, applyEnhancementSettings]);
 
   // Cleanup on unmount
   useEffect(() => {

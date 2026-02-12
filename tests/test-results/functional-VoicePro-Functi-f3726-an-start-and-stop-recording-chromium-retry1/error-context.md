@@ -1,0 +1,164 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e7]:
+      - generic [ref=e9]:
+        - img [ref=e11]
+        - generic [ref=e13]:
+          - heading "VoicePro" [level=2] [ref=e14]
+          - paragraph [ref=e15]: Audio Processing
+      - generic [ref=e17]:
+        - generic [ref=e18]: Navigation
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "My Controls" [ref=e22] [cursor=pointer]:
+              - /url: /
+              - img [ref=e23]
+              - generic [ref=e26]: My Controls
+          - listitem [ref=e27]:
+            - link "Team Monitor" [ref=e28] [cursor=pointer]:
+              - /url: /admin
+              - img [ref=e29]
+              - generic [ref=e34]: Team Monitor
+      - generic [ref=e36]:
+        - paragraph [ref=e37]: RingCentral Companion
+        - paragraph [ref=e38]: v1.0.0
+    - main [ref=e39]:
+      - generic [ref=e40]:
+        - button "Toggle Sidebar" [ref=e41] [cursor=pointer]:
+          - img
+          - generic [ref=e42]: Toggle Sidebar
+        - button [ref=e43] [cursor=pointer]:
+          - img
+      - main [ref=e44]:
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e48]:
+              - generic [ref=e49]:
+                - heading "My Controls" [level=1] [ref=e50]
+                - generic [ref=e51]: "- Test Agent"
+              - paragraph [ref=e52]: Manage your audio processing settings
+            - generic [ref=e53]:
+              - button "RingCentral Setup" [ref=e54] [cursor=pointer]:
+                - img
+                - text: RingCentral Setup
+              - generic [ref=e55]: Online
+          - generic [ref=e57]:
+            - generic [ref=e59]:
+              - generic [ref=e60]:
+                - img [ref=e61]
+                - text: Call Status
+              - button [ref=e63] [cursor=pointer]:
+                - img
+            - generic [ref=e65]:
+              - generic [ref=e66]:
+                - img [ref=e67]
+                - generic [ref=e69]: No active call
+              - button "Simulate Call" [ref=e70] [cursor=pointer]
+          - generic [ref=e73]:
+            - img [ref=e74]
+            - generic [ref=e76]: "Quick tip: Start audio processing before joining your RingCentral call for best results"
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e80]:
+                - generic [ref=e81]: Audio Processing
+                - generic [ref=e82]: Inactive
+              - button "Start Audio Processing" [ref=e84] [cursor=pointer]:
+                - img
+                - text: Start Audio Processing
+            - generic [ref=e85]:
+              - generic [ref=e87]:
+                - generic [ref=e88]: Noise Reduction
+                - switch [checked] [ref=e89] [cursor=pointer]
+              - generic [ref=e91]:
+                - generic [ref=e92]:
+                  - generic [ref=e93]:
+                    - generic [ref=e94]: Intensity
+                    - generic [ref=e95]: 50%
+                  - slider [ref=e100]
+                - paragraph [ref=e101]: Reduces background noise like keyboard sounds, AC hum, and ambient noise.
+            - generic [ref=e102]:
+              - generic [ref=e104]:
+                - generic [ref=e105]: Voice Modifier
+                - switch [ref=e106] [cursor=pointer]
+              - generic [ref=e108]:
+                - generic [ref=e109]:
+                  - text: Preset
+                  - combobox [disabled] [ref=e110]:
+                    - generic:
+                      - generic:
+                        - generic: neutral
+                        - generic: Natural voice, no modification
+                    - img [ref=e111]
+                - generic [ref=e113]:
+                  - generic [ref=e114]:
+                    - generic [ref=e115]: Pitch Adjustment
+                    - generic [ref=e116]: 0 st
+                  - slider [disabled] [ref=e121]
+                - generic [ref=e122]:
+                  - generic [ref=e123]:
+                    - generic [ref=e124]: Formant Shift
+                    - generic [ref=e125]: 0%
+                  - slider [disabled] [ref=e130]
+                  - paragraph [ref=e131]: "Positive: brighter voice. Negative: warmer voice."
+            - generic [ref=e132]:
+              - generic [ref=e134]:
+                - img [ref=e135]
+                - text: Voice Enhancement
+              - generic [ref=e138]:
+                - generic [ref=e139]:
+                  - generic [ref=e140]:
+                    - generic [ref=e141]: Clarity Boost
+                    - generic [ref=e142]: 0%
+                  - slider [ref=e146]
+                  - paragraph [ref=e147]: Enhances vocal clarity for better intelligibility.
+                - generic [ref=e148]:
+                  - generic [ref=e149]:
+                    - text: Volume Normalization
+                    - paragraph [ref=e150]: Maintains consistent volume level
+                  - switch [ref=e151] [cursor=pointer]
+            - generic [ref=e152]:
+              - generic [ref=e154]:
+                - img [ref=e155]
+                - text: Volume
+              - generic [ref=e160]:
+                - generic [ref=e161]:
+                  - generic [ref=e162]:
+                    - generic [ref=e163]: Input Gain
+                    - generic [ref=e164]: 100%
+                  - slider [ref=e169]
+                - generic [ref=e170]:
+                  - generic [ref=e171]:
+                    - generic [ref=e172]: Output Gain
+                    - generic [ref=e173]: 100%
+                  - slider [ref=e178]
+            - generic [ref=e179]:
+              - generic [ref=e181]:
+                - img [ref=e182]
+                - text: Input Device
+              - combobox [ref=e186] [cursor=pointer]:
+                - generic: Default MicrophoneFake Default Audio Input
+                - img [ref=e187]
+          - generic [ref=e189]:
+            - generic [ref=e191]:
+              - generic [ref=e192]:
+                - img [ref=e193]
+                - text: Custom Profiles
+              - button "Save Current" [ref=e197] [cursor=pointer]:
+                - img
+                - text: Save Current
+            - generic [ref=e199]:
+              - tablist [ref=e200]:
+                - tab "My Profiles" [selected] [ref=e201] [cursor=pointer]:
+                  - img [ref=e202]
+                  - text: My Profiles
+                - tab "Team Presets" [ref=e205] [cursor=pointer]:
+                  - img [ref=e206]
+                  - text: Team Presets
+              - tabpanel "My Profiles" [ref=e210]:
+                - generic [ref=e211]: No saved profiles yet. Save your current settings to create one.
+  - region "Notifications (F8)":
+    - list
+```

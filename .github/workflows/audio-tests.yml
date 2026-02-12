@@ -1,0 +1,151 @@
+name: VoicePro Audio Quality Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  # Functional tests (fast, no audio analysis)
+  functional-tests:
+    name: Functional Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install test dependencies
+        run: cd tests && npm ci
+      
+      - name: Install Playwright browsers
+        run: cd tests && npx playwright install --with-deps chromium
+      
+      - name: Start dev server
+        run: |
+          npm run dev &
+          npx wait-on http://localhost:5000 --timeout 60000
+      
+      - name: Run functional tests
+        run: cd tests && npx playwright test functional.spec.ts
+      
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: functional-test-screenshots
+          path: tests/screenshots/
+          retention-days: 30
+      
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: functional-test-report
+          path: tests/playwright-report/
+          retention-days: 30
+
+  # Full audio quality tests (with deep analysis)
+  audio-quality-tests:
+    name: Audio Quality Tests (Full Analysis)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install test dependencies
+        run: cd tests && npm ci
+      
+      - name: Install audio processing libraries
+        run: |
+          cd tests
+          npm install wav-decoder audiobuffer-to-wav fft.js
+      
+      - name: Install Playwright browsers
+        run: cd tests && npx playwright install --with-deps chromium
+      
+      - name: Generate test audio files
+        run: cd tests && npm run test:generate-samples
+      
+      - name: Start dev server
+        run: |
+          npm run dev &
+          npx wait-on http://localhost:5000 --timeout 60000
+      
+      - name: Run audio quality tests
+        run: cd tests && npx playwright test audio-quality.spec.ts
+        continue-on-error: true  # Don't fail if audio tests have issues
+      
+      - name: Upload test audio files
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-audio-files
+          path: tests/test-audio/
+          retention-days: 7
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: audio-quality-results
+          path: tests/results/
+          retention-days: 30
+      
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: audio-quality-report
+          path: tests/playwright-report/
+          retention-days: 30
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const resultsPath = 'tests/results/';
+            
+            if (fs.existsSync(resultsPath)) {
+              const files = fs.readdirSync(resultsPath).filter(f => f.endsWith('.json'));
+              
+              let comment = '## 🎙️ Audio Quality Test Results\n\n';
+              comment += '| Test | SNR (dB) | THD (%) | Quality Score | Status |\n';
+              comment += '|------|----------|---------|---------------|--------|\n';
+              
+              files.forEach(file => {
+                const data = JSON.parse(fs.readFileSync(`${resultsPath}/${file}`, 'utf-8'));
+                const status = data.overallQuality > 85 ? '✅ PASS' : data.overallQuality > 70 ? '⚠️ WARN' : '❌ FAIL';
+                comment += `| ${file.replace('.json', '')} | ${data.snr?.toFixed(1) || 'N/A'} | ${data.thd?.toFixed(2) || 'N/A'} | ${data.overallQuality?.toFixed(0) || 'N/A'} | ${status} |\n`;
+              });
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }

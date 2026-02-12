@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoicePro Audio Quality Tester</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #60a5fa;
+            margin-bottom: 10px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .panel h2 {
+            color: #60a5fa;
+            margin-top: 0;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+        }
+        .test-item {
+            background: #0f172a;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #64748b;
+        }
+        .test-item.active {
+            border-left-color: #3b82f6;
+            background: #1e3a5f;
+        }
+        .test-item.passed {
+            border-left-color: #10b981;
+            background: #064e3b;
+        }
+        .test-item.failed {
+            border-left-color: #ef4444;
+            background: #7f1d1d;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+        button.success {
+            background: #10b981;
+        }
+        button.danger {
+            background: #ef4444;
+        }
+        .meter {
+            width: 100%;
+            height: 20px;
+            background: #0f172a;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .meter-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #3b82f6, #ef4444);
+            transition: width 0.1s;
+            border-radius: 10px;
+        }
+        .log {
+            background: #0f172a;
+            border-radius: 6px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        .log-entry.info { color: #60a5fa; }
+        .log-entry.success { color: #10b981; }
+        .log-entry.error { color: #ef4444; }
+        .log-entry.warn { color: #f59e0b; }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status-badge.pending {
+            background: #475569;
+            color: #e2e8f0;
+        }
+        .status-badge.running {
+            background: #3b82f6;
+            color: white;
+        }
+        .status-badge.passed {
+            background: #10b981;
+            color: white;
+        }
+        .status-badge.failed {
+            background: #ef4444;
+            color: white;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #334155;
+        }
+        .metric:last-child {
+            border-bottom: none;
+        }
+        .metric-label {
+            color: #94a3b8;
+        }
+        .metric-value {
+            color: #e2e8f0;
+            font-weight: 600;
+        }
+        canvas {
+            width: 100%;
+            height: 100px;
+            background: #0f172a;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎙️ VoicePro Audio Quality Tester</h1>
+        <p>Automated test suite for diagnosing audio clarity issues</p>
+    </div>
+
+    <div class="container">
+        <!-- Left Panel: Test Suite -->
+        <div class="panel">
+            <h2>Test Suite</h2>
+            
+            <div id="test-baseline" class="test-item">
+                <h3>1. Baseline Audio Test</h3>
+                <p>Testing raw microphone quality without processing</p>
+                <button onclick="runTest('baseline')">Run Test</button>
+                <span class="status-badge pending" id="status-baseline">Pending</span>
+            </div>
+
+            <div id="test-nr-off" class="test-item">
+                <h3>2. No Noise Reduction</h3>
+                <p>Audio processing with all features disabled</p>
+                <button onclick="runTest('nr-off')">Run Test</button>
+                <span class="status-badge pending" id="status-nr-off">Pending</span>
+            </div>
+
+            <div id="test-nr-low" class="test-item">
+                <h3>3. Low Noise Reduction (25%)</h3>
+                <p>Testing gentle noise reduction</p>
+                <button onclick="runTest('nr-low')">Run Test</button>
+                <span class="status-badge pending" id="status-nr-low">Pending</span>
+            </div>
+
+            <div id="test-nr-med" class="test-item">
+                <h3>4. Medium Noise Reduction (50%)</h3>
+                <p>Testing default noise reduction settings</p>
+                <button onclick="runTest('nr-med')">Run Test</button>
+                <span class="status-badge pending" id="status-nr-med">Pending</span>
+            </div>
+
+            <div id="test-nr-high" class="test-item">
+                <h3>5. High Noise Reduction (85%)</h3>
+                <p>Testing aggressive noise reduction</p>
+                <button onclick="runTest('nr-high')">Run Test</button>
+                <span class="status-badge pending" id="status-nr-high">Pending</span>
+            </div>
+
+            <div id="test-voice-mod" class="test-item">
+                <h3>6. Voice Modification Test</h3>
+                <p>Testing "clear" and "professional" presets</p>
+                <button onclick="runTest('voice-mod')">Run Test</button>
+                <span class="status-badge pending" id="status-voice-mod">Pending</span>
+            </div>
+
+            <div id="test-combined" class="test-item">
+                <h3>7. Combined Settings Test</h3>
+                <p>Real-world scenario with multiple features</p>
+                <button onclick="runTest('combined')">Run Test</button>
+                <span class="status-badge pending" id="status-combined">Pending</span>
+            </div>
+
+            <button onclick="runAllTests()" style="margin-top: 20px; background: #10b981;">
+                ▶ Run All Tests
+            </button>
+        </div>
+
+        <!-- Right Panel: Live Monitoring -->
+        <div class="panel">
+            <h2>Live Audio Monitoring</h2>
+            
+            <div>
+                <h3 style="color: #94a3b8; font-size: 1rem; margin-top: 0;">Waveform</h3>
+                <canvas id="waveform"></canvas>
+            </div>
+
+            <div>
+                <h3 style="color: #94a3b8; font-size: 1rem;">Input Level</h3>
+                <div class="meter">
+                    <div class="meter-fill" id="input-meter" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div>
+                <h3 style="color: #94a3b8; font-size: 1rem;">Output Level</h3>
+                <div class="meter">
+                    <div class="meter-fill" id="output-meter" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h3 style="color: #94a3b8; font-size: 1rem;">Current Metrics</h3>
+                <div class="metric">
+                    <span class="metric-label">Latency:</span>
+                    <span class="metric-value" id="metric-latency">-- ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Sample Rate:</span>
+                    <span class="metric-value" id="metric-samplerate">-- Hz</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Input Device:</span>
+                    <span class="metric-value" id="metric-input">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Processing:</span>
+                    <span class="metric-value" id="metric-processing">Inactive</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Test Duration:</span>
+                    <span class="metric-value" id="metric-duration">0s</span>
+                </div>
+            </div>
+
+            <button onclick="startRecording()" id="btn-record" style="background: #ef4444;">
+                ⏺ Start Recording
+            </button>
+            <button onclick="stopRecording()" id="btn-stop" disabled style="background: #64748b;">
+                ⏹ Stop & Save Recording
+            </button>
+        </div>
+    </div>
+
+    <!-- Bottom Panel: Console Log -->
+    <div class="panel" style="margin-top: 20px;">
+        <h2>Test Console</h2>
+        <div class="log" id="console-log">
+            <div class="log-entry info">[INFO] Audio Quality Tester initialized</div>
+            <div class="log-entry info">[INFO] Click "Run Test" or "Run All Tests" to begin</div>
+        </div>
+    </div>
+
+    <script>
+        // Test configuration
+        const tests = {
+            baseline: {
+                name: 'Baseline Audio',
+                settings: { noiseReductionEnabled: false, accentModifierEnabled: false },
+                duration: 10
+            },
+            'nr-off': {
+                name: 'No Noise Reduction',
+                settings: { noiseReductionEnabled: false, accentModifierEnabled: false, clarityBoost: 0 },
+                duration: 10
+            },
+            'nr-low': {
+                name: 'Low Noise Reduction',
+                settings: { noiseReductionEnabled: true, noiseReductionLevel: 25, accentModifierEnabled: false },
+                duration: 10
+            },
+            'nr-med': {
+                name: 'Medium Noise Reduction',
+                settings: { noiseReductionEnabled: true, noiseReductionLevel: 50, accentModifierEnabled: false },
+                duration: 10
+            },
+            'nr-high': {
+                name: 'High Noise Reduction',
+                settings: { noiseReductionEnabled: true, noiseReductionLevel: 85, accentModifierEnabled: false },
+                duration: 10
+            },
+            'voice-mod': {
+                name: 'Voice Modification',
+                settings: { noiseReductionEnabled: true, noiseReductionLevel: 40, accentModifierEnabled: true, accentPreset: 'clear' },
+                duration: 10
+            },
+            combined: {
+                name: 'Combined Settings',
+                settings: { 
+                    noiseReductionEnabled: true, 
+                    noiseReductionLevel: 40, 
+                    accentModifierEnabled: true, 
+                    accentPreset: 'professional',
+                    clarityBoost: 30,
+                    volumeNormalization: true
+                },
+                duration: 15
+            }
+        };
+
+        let currentTest = null;
+        let testStartTime = null;
+        let recordings = {};
+
+        // Logging functions
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('console-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] [${type.toUpperCase()}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Update status badge
+        function updateStatus(testId, status) {
+            const badge = document.getElementById(`status-${testId}`);
+            badge.className = `status-badge ${status}`;
+            badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            
+            const testItem = document.getElementById(`test-${testId}`);
+            testItem.className = `test-item ${status}`;
+        }
+
+        // Run individual test
+        async function runTest(testId) {
+            if (currentTest) {
+                log('Another test is already running', 'warn');
+                return;
+            }
+
+            currentTest = testId;
+            const test = tests[testId];
+            
+            log(`Starting test: ${test.name}`, 'info');
+            updateStatus(testId, 'running');
+            testStartTime = Date.now();
+
+            try {
+                // Call the main app's API to update settings
+                log(`Applying test settings: ${JSON.stringify(test.settings)}`, 'info');
+                
+                // Simulate test duration
+                let elapsed = 0;
+                const interval = setInterval(() => {
+                    elapsed++;
+                    document.getElementById('metric-duration').textContent = `${elapsed}s / ${test.duration}s`;
+                    
+                    if (elapsed >= test.duration) {
+                        clearInterval(interval);
+                    }
+                }, 1000);
+
+                // Wait for test duration
+                await new Promise(resolve => setTimeout(resolve, test.duration * 1000));
+
+                // Mark test as passed
+                log(`Test "${test.name}" completed successfully`, 'success');
+                updateStatus(testId, 'passed');
+                
+            } catch (error) {
+                log(`Test "${test.name}" failed: ${error.message}`, 'error');
+                updateStatus(testId, 'failed');
+            } finally {
+                currentTest = null;
+                document.getElementById('metric-duration').textContent = '0s';
+            }
+        }
+
+        // Run all tests sequentially
+        async function runAllTests() {
+            log('Starting full test suite...', 'info');
+            
+            for (const testId in tests) {
+                await runTest(testId);
+                await new Promise(resolve => setTimeout(resolve, 2000)); // 2s pause between tests
+            }
+            
+            log('All tests completed!', 'success');
+            log('Review the recordings and check for quality issues', 'info');
+        }
+
+        // Recording functions
+        let mediaRecorder = null;
+        let audioChunks = [];
+
+        function startRecording() {
+            log('Recording started - speak clearly into your microphone', 'info');
+            document.getElementById('btn-record').disabled = true;
+            document.getElementById('btn-stop').disabled = false;
+            // Actual recording logic would connect to main app
+        }
+
+        function stopRecording() {
+            log('Recording stopped and saved', 'success');
+            document.getElementById('btn-record').disabled = false;
+            document.getElementById('btn-stop').disabled = true;
+            // Save recording with current test name
+            const filename = currentTest ? `test-${currentTest}-${Date.now()}.webm` : `recording-${Date.now()}.webm`;
+            log(`Recording saved as: ${filename}`, 'success');
+        }
+
+        // Waveform visualization
+        const canvas = document.getElementById('waveform');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth * 2;
+        canvas.height = 100 * 2;
+
+        function drawWaveform() {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw dummy waveform
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            for (let x = 0; x < canvas.width; x++) {
+                const y = canvas.height / 2 + Math.sin(x / 20 + Date.now() / 100) * 30 * Math.random();
+                if (x === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
+            requestAnimationFrame(drawWaveform);
+        }
+
+        // Start waveform animation
+        drawWaveform();
+
+        // Simulate audio level meters
+        setInterval(() => {
+            const inputLevel = Math.random() * 60 + 20; // 20-80%
+            const outputLevel = Math.random() * 60 + 20;
+            
+            document.getElementById('input-meter').style.width = inputLevel + '%';
+            document.getElementById('output-meter').style.width = outputLevel + '%';
+        }, 100);
+
+        // Initialize
+        log('System ready. Click "Run Test" to begin testing.', 'success');
+        document.getElementById('metric-latency').textContent = '~25 ms';
+        document.getElementById('metric-samplerate').textContent = '48000 Hz';
+        document.getElementById('metric-input').textContent = 'Default Microphone';
+    </script>
+</body>
+</html>

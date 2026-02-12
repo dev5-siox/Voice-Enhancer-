@@ -1,0 +1,222 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e7]:
+      - generic [ref=e9]:
+        - img [ref=e11]
+        - generic [ref=e13]:
+          - heading "VoicePro" [level=2] [ref=e14]
+          - paragraph [ref=e15]: Audio Processing
+      - generic [ref=e17]:
+        - generic [ref=e18]: Navigation
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "My Controls" [ref=e22] [cursor=pointer]:
+              - /url: /
+              - img [ref=e23]
+              - generic [ref=e26]: My Controls
+          - listitem [ref=e27]:
+            - link "Team Monitor" [ref=e28] [cursor=pointer]:
+              - /url: /admin
+              - img [ref=e29]
+              - generic [ref=e34]: Team Monitor
+      - generic [ref=e36]:
+        - paragraph [ref=e37]: RingCentral Companion
+        - paragraph [ref=e38]: v1.0.0
+    - main [ref=e39]:
+      - generic [ref=e40]:
+        - button "Toggle Sidebar" [ref=e41] [cursor=pointer]:
+          - img
+          - generic [ref=e42]: Toggle Sidebar
+        - button [ref=e43] [cursor=pointer]:
+          - img
+      - main [ref=e44]:
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e48]:
+              - generic [ref=e49]:
+                - heading "My Controls" [level=1] [ref=e50]
+                - generic [ref=e51]: "- Test Agent"
+              - paragraph [ref=e52]: Manage your audio processing settings
+            - generic [ref=e53]:
+              - button "RingCentral Setup" [ref=e54] [cursor=pointer]:
+                - img
+                - text: RingCentral Setup
+              - generic [ref=e55]: Online
+          - generic [ref=e57]:
+            - generic [ref=e59]:
+              - generic [ref=e60]:
+                - img [ref=e61]
+                - text: Call Status
+              - button [ref=e63] [cursor=pointer]:
+                - img
+            - generic [ref=e65]:
+              - generic [ref=e66]:
+                - img [ref=e67]
+                - generic [ref=e69]: No active call
+              - button "Simulate Call" [ref=e70] [cursor=pointer]
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - generic [ref=e78]: Audio processing active
+              - generic [ref=e79]: "- Noise reduction filters applied"
+            - generic [ref=e80]: "Latency: 10ms"
+          - generic [ref=e83]:
+            - img [ref=e84]
+            - generic [ref=e86]: "Quick tip: Start audio processing before joining your RingCentral call for best results"
+          - generic [ref=e87]:
+            - generic [ref=e88]:
+              - generic [ref=e90]:
+                - generic [ref=e91]: Audio Processing
+                - generic [ref=e92]:
+                  - text: Active
+                  - generic [ref=e96]: <10ms
+              - generic [ref=e97]:
+                - generic [ref=e131]:
+                  - generic [ref=e132]:
+                    - generic [ref=e133]: Input
+                    - generic [ref=e135]: 34%
+                  - generic [ref=e136]:
+                    - generic [ref=e137]: Output
+                    - generic [ref=e139]: 34%
+                - generic [ref=e140]:
+                  - button "Stop" [ref=e141] [cursor=pointer]:
+                    - img
+                    - text: Stop
+                  - button "Record" [ref=e142] [cursor=pointer]:
+                    - img
+                    - text: Record
+            - generic [ref=e143]:
+              - generic [ref=e145]:
+                - generic [ref=e146]: Noise Reduction
+                - switch [checked] [ref=e147] [cursor=pointer]
+              - generic [ref=e149]:
+                - generic [ref=e150]:
+                  - generic [ref=e151]:
+                    - generic [ref=e152]: Intensity
+                    - generic [ref=e153]: 50%
+                  - slider [ref=e158]
+                - paragraph [ref=e159]: Reduces background noise like keyboard sounds, AC hum, and ambient noise.
+            - generic [ref=e160]:
+              - generic [ref=e162]:
+                - generic [ref=e163]: Voice Modifier
+                - switch [ref=e164] [cursor=pointer]
+              - generic [ref=e166]:
+                - generic [ref=e167]:
+                  - text: Preset
+                  - combobox [disabled] [ref=e168]:
+                    - generic:
+                      - generic:
+                        - generic: neutral
+                        - generic: Natural voice, no modification
+                    - img [ref=e169]
+                - generic [ref=e171]:
+                  - generic [ref=e172]:
+                    - generic [ref=e173]: Pitch Adjustment
+                    - generic [ref=e174]: 0 st
+                  - slider [disabled] [ref=e179]
+                - generic [ref=e180]:
+                  - generic [ref=e181]:
+                    - generic [ref=e182]: Formant Shift
+                    - generic [ref=e183]: 0%
+                  - slider [disabled] [ref=e188]
+                  - paragraph [ref=e189]: "Positive: brighter voice. Negative: warmer voice."
+            - generic [ref=e190]:
+              - generic [ref=e192]:
+                - img [ref=e193]
+                - text: Voice Enhancement
+              - generic [ref=e196]:
+                - generic [ref=e197]:
+                  - generic [ref=e198]:
+                    - generic [ref=e199]: Clarity Boost
+                    - generic [ref=e200]: 0%
+                  - slider [ref=e204]
+                  - paragraph [ref=e205]: Enhances vocal clarity for better intelligibility.
+                - generic [ref=e206]:
+                  - generic [ref=e207]:
+                    - text: Volume Normalization
+                    - paragraph [ref=e208]: Maintains consistent volume level
+                  - switch [ref=e209] [cursor=pointer]
+            - generic [ref=e210]:
+              - generic [ref=e212]:
+                - img [ref=e213]
+                - text: Volume
+              - generic [ref=e218]:
+                - generic [ref=e219]:
+                  - generic [ref=e220]:
+                    - generic [ref=e221]: Input Gain
+                    - generic [ref=e222]: 100%
+                  - slider [ref=e227]
+                - generic [ref=e228]:
+                  - generic [ref=e229]:
+                    - generic [ref=e230]: Output Gain
+                    - generic [ref=e231]: 100%
+                  - slider [ref=e236]
+            - generic [ref=e237]:
+              - generic [ref=e239]:
+                - img [ref=e240]
+                - text: Input Device
+              - combobox [ref=e244] [cursor=pointer]:
+                - generic: Default MicrophoneFake Default Audio Input
+                - img [ref=e245]
+            - generic [ref=e247]:
+              - generic [ref=e250]:
+                - img [ref=e251]
+                - text: Audio Output Routing
+                - generic [ref=e257]: Active
+              - generic [ref=e259]:
+                - generic [ref=e260]:
+                  - img [ref=e261]
+                  - generic [ref=e267]:
+                    - paragraph [ref=e268]: Processed audio is now active
+                    - paragraph [ref=e269]: VoicePro is outputting your modified voice. Select "CABLE Input (VB-Audio)" below to route to RingCentral.
+                - generic [ref=e270]:
+                  - text: "Route processed audio to:"
+                  - combobox [ref=e271] [cursor=pointer]:
+                    - generic:
+                      - text: System Default (Speakers)
+                      - generic:
+                        - generic: Fake Default Audio Output
+                    - img [ref=e272]
+                  - paragraph [ref=e274]: "For RingCentral: Select \"CABLE Input\" (VB-Audio) or \"BlackHole\" as output, then set that same device as your mic in RingCentral."
+                - button "Disable Audio Output" [ref=e275] [cursor=pointer]:
+                  - img
+                  - text: Disable Audio Output
+                - generic [ref=e276]:
+                  - paragraph [ref=e277]: "Setup for RingCentral:"
+                  - list [ref=e278]:
+                    - listitem [ref=e279]: Install VB-Audio Virtual Cable (Windows) or BlackHole (Mac)
+                    - listitem [ref=e280]: Select "CABLE Input" in the dropdown above
+                    - listitem [ref=e281]: In RingCentral, set your microphone to "CABLE Output"
+                    - listitem [ref=e282]: RingCentral will now receive your processed voice
+          - generic [ref=e286]:
+            - img [ref=e287]
+            - generic [ref=e289]: For guaranteed RingCentral integration, use the VoicePro Desktop App
+          - generic [ref=e290]:
+            - generic [ref=e292]:
+              - generic [ref=e293]:
+                - img [ref=e294]
+                - text: Custom Profiles
+              - button "Save Current" [ref=e298] [cursor=pointer]:
+                - img
+                - text: Save Current
+            - generic [ref=e300]:
+              - tablist [ref=e301]:
+                - tab "My Profiles" [selected] [ref=e302] [cursor=pointer]:
+                  - img [ref=e303]
+                  - text: My Profiles
+                - tab "Team Presets" [ref=e306] [cursor=pointer]:
+                  - img [ref=e307]
+                  - text: Team Presets
+              - tabpanel "My Profiles" [ref=e311]:
+                - generic [ref=e312]: No saved profiles yet. Save your current settings to create one.
+  - region "Notifications (F8)":
+    - list [ref=e314]:
+      - status [ref=e315]:
+        - generic [ref=e316]:
+          - generic [ref=e317]: Welcome to VoicePro
+          - generic [ref=e318]: You're registered as Test Agent
+        - button [ref=e319] [cursor=pointer]:
+          - img [ref=e320]
+```

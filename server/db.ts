@@ -6,11 +6,14 @@ import * as schema from "@shared/schema";
 // Configure Neon for WebSocket support
 neonConfig.webSocketConstructor = ws;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+// Allow running without DATABASE_URL for in-memory storage mode
+let db: any = null;
+
+if (process.env.DATABASE_URL) {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  db = drizzle(pool, { schema });
+} else {
+  console.warn("⚠️  DATABASE_URL not set. Using in-memory storage instead.");
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
+export { db };

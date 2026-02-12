@@ -182,7 +182,7 @@ export type InsertRecording = typeof recordings.$inferInsert;
 
 // Update agent settings schema
 export const updateAgentSettingsSchema = z.object({
-  audioSettings: audioSettingsSchema.partial(),
+  audioSettings: audioSettingsSchema.partial().optional(),
   status: z.enum(["online", "away", "busy", "offline"]).optional(),
   isProcessingActive: z.boolean().optional(),
 });

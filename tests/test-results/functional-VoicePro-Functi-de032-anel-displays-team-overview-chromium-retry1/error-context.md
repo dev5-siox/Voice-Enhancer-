@@ -1,0 +1,246 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e7]:
+      - generic [ref=e9]:
+        - img [ref=e11]
+        - generic [ref=e13]:
+          - heading "VoicePro" [level=2] [ref=e14]
+          - paragraph [ref=e15]: Audio Processing
+      - generic [ref=e17]:
+        - generic [ref=e18]: Navigation
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "My Controls" [ref=e22] [cursor=pointer]:
+              - /url: /
+              - img [ref=e23]
+              - generic [ref=e26]: My Controls
+          - listitem [ref=e27]:
+            - link "Team Monitor" [ref=e28] [cursor=pointer]:
+              - /url: /admin
+              - img [ref=e29]
+              - generic [ref=e34]: Team Monitor
+      - generic [ref=e36]:
+        - paragraph [ref=e37]: RingCentral Companion
+        - paragraph [ref=e38]: v1.0.0
+    - main [ref=e39]:
+      - generic [ref=e40]:
+        - button "Toggle Sidebar" [ref=e41] [cursor=pointer]:
+          - img
+          - generic [ref=e42]: Toggle Sidebar
+        - button [ref=e43] [cursor=pointer]:
+          - img
+      - main [ref=e44]:
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e48]:
+              - heading "Team Monitor" [level=1] [ref=e49]
+              - paragraph [ref=e50]: Monitor audio processing status and analytics for all agents
+            - button "Refresh" [ref=e51] [cursor=pointer]:
+              - img
+              - text: Refresh
+          - generic [ref=e52]:
+            - generic [ref=e55]:
+              - img [ref=e57]
+              - generic [ref=e62]:
+                - paragraph [ref=e63]: "24"
+                - paragraph [ref=e64]: Total Agents
+            - generic [ref=e67]:
+              - img [ref=e69]
+              - generic [ref=e71]:
+                - paragraph [ref=e72]: "21"
+                - paragraph [ref=e73]: Online
+            - generic [ref=e76]:
+              - img [ref=e78]
+              - generic [ref=e80]:
+                - paragraph [ref=e81]: "2"
+                - paragraph [ref=e82]: On Calls
+            - generic [ref=e85]:
+              - img [ref=e87]
+              - generic [ref=e90]:
+                - paragraph [ref=e91]: "3"
+                - paragraph [ref=e92]: Processing
+          - generic [ref=e93]:
+            - tablist [ref=e94]:
+              - tab "Agents" [selected] [ref=e95] [cursor=pointer]:
+                - img [ref=e96]
+                - text: Agents
+              - tab "Analytics" [ref=e101] [cursor=pointer]:
+                - img [ref=e102]
+                - text: Analytics
+              - tab "Team Presets" [ref=e104] [cursor=pointer]:
+                - img [ref=e105]
+                - text: Team Presets
+            - tabpanel "Agents" [ref=e108]:
+              - generic [ref=e111]:
+                - generic [ref=e112]:
+                  - img [ref=e113]
+                  - textbox "Search agents..." [ref=e116]
+                - combobox [ref=e117] [cursor=pointer]:
+                  - generic: All Status
+                  - img [ref=e118]
+              - generic [ref=e120]:
+                - generic [ref=e123] [cursor=pointer]:
+                  - generic [ref=e125]:
+                    - heading "David Kim" [level=3] [ref=e126]
+                    - paragraph [ref=e127]: d.kim@company.com
+                  - generic [ref=e132]:
+                    - img [ref=e133]
+                    - generic [ref=e139]: Inactive
+                  - generic [ref=e141]: NR
+                - generic [ref=e144] [cursor=pointer]:
+                  - generic [ref=e146]:
+                    - heading "Emily Rodriguez" [level=3] [ref=e147]
+                    - paragraph [ref=e148]: e.rodriguez@company.com
+                  - generic [ref=e153]:
+                    - img [ref=e154]
+                    - generic [ref=e157]: Active
+                  - generic [ref=e159]: NR
+                - generic [ref=e162] [cursor=pointer]:
+                  - heading "Herry Chokshi" [level=3] [ref=e165]
+                  - generic [ref=e170]:
+                    - img [ref=e171]
+                    - generic [ref=e177]: Inactive
+                  - generic [ref=e179]: NR
+                - generic [ref=e182] [cursor=pointer]:
+                  - generic [ref=e184]:
+                    - heading "Jessica Martinez" [level=3] [ref=e185]
+                    - paragraph [ref=e186]: j.martinez@company.com
+                  - generic [ref=e191]:
+                    - img [ref=e192]
+                    - generic [ref=e198]: Inactive
+                  - generic [ref=e200]: NR
+                - generic [ref=e203] [cursor=pointer]:
+                  - generic [ref=e205]:
+                    - heading "Michael Chen" [level=3] [ref=e206]
+                    - paragraph [ref=e207]: m.chen@company.com
+                  - generic [ref=e212]:
+                    - img [ref=e213]
+                    - generic [ref=e216]: Active
+                  - generic [ref=e217]:
+                    - generic [ref=e218]: NR
+                    - generic [ref=e219]: VM
+                - generic [ref=e222] [cursor=pointer]:
+                  - generic [ref=e224]:
+                    - heading "Sarah Johnson" [level=3] [ref=e225]
+                    - paragraph [ref=e226]: sarah.j@company.com
+                  - generic [ref=e231]:
+                    - img [ref=e232]
+                    - generic [ref=e235]: Active
+                  - generic [ref=e237]: NR
+                - generic [ref=e240] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e243]
+                  - generic [ref=e248]:
+                    - img [ref=e249]
+                    - generic [ref=e255]: Inactive
+                  - generic [ref=e257]: NR
+                - generic [ref=e260] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e263]
+                  - generic [ref=e268]:
+                    - img [ref=e269]
+                    - generic [ref=e275]: Inactive
+                  - generic [ref=e277]: NR
+                - generic [ref=e280] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e283]
+                  - generic [ref=e288]:
+                    - img [ref=e289]
+                    - generic [ref=e295]: Inactive
+                  - generic [ref=e297]: NR
+                - generic [ref=e300] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e303]
+                  - generic [ref=e308]:
+                    - img [ref=e309]
+                    - generic [ref=e315]: Inactive
+                  - generic [ref=e317]: NR
+                - generic [ref=e320] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e323]
+                  - generic [ref=e328]:
+                    - img [ref=e329]
+                    - generic [ref=e335]: Inactive
+                  - generic [ref=e337]: NR
+                - generic [ref=e340] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e343]
+                  - generic [ref=e348]:
+                    - img [ref=e349]
+                    - generic [ref=e355]: Inactive
+                  - generic [ref=e357]: NR
+                - generic [ref=e360] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e363]
+                  - generic [ref=e368]:
+                    - img [ref=e369]
+                    - generic [ref=e375]: Inactive
+                  - generic [ref=e377]: NR
+                - generic [ref=e380] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e383]
+                  - generic [ref=e388]:
+                    - img [ref=e389]
+                    - generic [ref=e395]: Inactive
+                  - generic [ref=e397]: NR
+                - generic [ref=e400] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e403]
+                  - generic [ref=e408]:
+                    - img [ref=e409]
+                    - generic [ref=e415]: Inactive
+                  - generic [ref=e417]: NR
+                - generic [ref=e420] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e423]
+                  - generic [ref=e428]:
+                    - img [ref=e429]
+                    - generic [ref=e435]: Inactive
+                  - generic [ref=e436]:
+                    - generic [ref=e437]: NR
+                    - generic [ref=e438]: VM
+                - generic [ref=e441] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e444]
+                  - generic [ref=e449]:
+                    - img [ref=e450]
+                    - generic [ref=e456]: Inactive
+                  - generic [ref=e458]: NR
+                - generic [ref=e461] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e464]
+                  - generic [ref=e469]:
+                    - img [ref=e470]
+                    - generic [ref=e476]: Inactive
+                  - generic [ref=e478]: NR
+                - generic [ref=e481] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e484]
+                  - generic [ref=e489]:
+                    - img [ref=e490]
+                    - generic [ref=e496]: Inactive
+                  - generic [ref=e498]: NR
+                - generic [ref=e501] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e504]
+                  - generic [ref=e509]:
+                    - img [ref=e510]
+                    - generic [ref=e516]: Inactive
+                  - generic [ref=e518]: NR
+                - generic [ref=e521] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e524]
+                  - generic [ref=e529]:
+                    - img [ref=e530]
+                    - generic [ref=e536]: Inactive
+                  - generic [ref=e538]: NR
+                - generic [ref=e541] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e544]
+                  - generic [ref=e549]:
+                    - img [ref=e550]
+                    - generic [ref=e556]: Inactive
+                  - generic [ref=e558]: NR
+                - generic [ref=e561] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e564]
+                  - generic [ref=e569]:
+                    - img [ref=e570]
+                    - generic [ref=e576]: Inactive
+                  - generic [ref=e578]: NR
+                - generic [ref=e581] [cursor=pointer]:
+                  - heading "Test Agent" [level=3] [ref=e584]
+                  - generic [ref=e589]:
+                    - img [ref=e590]
+                    - generic [ref=e596]: Inactive
+                  - generic [ref=e598]: NR
+              - generic [ref=e599]: Showing 24 of 24 agents
+  - region "Notifications (F8)":
+    - list
+```

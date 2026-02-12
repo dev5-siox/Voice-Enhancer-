@@ -1,18 +1,54 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAgentSchema, updateAgentSettingsSchema, insertCustomProfileSchema, insertTeamPresetSchema } from "@shared/schema";
+import { 
+  insertAgentSchema, 
+  updateAgentSettingsSchema, 
+  insertCustomProfileSchema, 
+  insertTeamPresetSchema,
+  createInsertSchema,
+  usageStats,
+  recordings,
+  teamPresets
+} from "@shared/schema";
 import { z } from "zod";
+import { 
+  requireAuth, 
+  requireAdmin, 
+  optionalAuth,
+  handleLogin, 
+  handleLogout, 
+  handleGetCurrentUser,
+  handleRegisterUser 
+} from "./auth";
+
+// Create validation schemas for missing endpoints
+const insertUsageStatsSchema = createInsertSchema(usageStats);
+const insertRecordingSchema = createInsertSchema(recordings);
+const updateTeamPresetSchema = insertTeamPresetSchema.partial();
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Seed database on startup
-  await storage.seedSampleAgents();
+  // ===== Authentication Routes (No auth required) =====
+  app.post("/api/auth/login", handleLogin);
+  app.post("/api/auth/logout", requireAuth, handleLogout);
+  app.get("/api/auth/me", requireAuth, handleGetCurrentUser);
+  app.post("/api/auth/register", requireAuth, requireAdmin, handleRegisterUser);
 
+  // Seed database on startup - with error handling
+  try {
+    await storage.seedSampleAgents();
+  } catch (error) {
+    console.error("❌ Failed to seed sample agents:", error);
+    // Continue startup - don't crash server if seeding fails
+  }
+
+  // ===== Agent Routes (Require Authentication) =====
+  
   // Get all agents
-  app.get("/api/agents", async (req, res) => {
+  app.get("/api/agents", optionalAuth, async (req, res) => {
     try {
       const agents = await storage.getAllAgents();
       res.json(agents);
@@ -23,7 +59,7 @@ export async function registerRoutes(
   });
 
   // Get a single agent
-  app.get("/api/agents/:id", async (req, res) => {
+  app.get("/api/agents/:id", optionalAuth, async (req, res) => {
     try {
       const agent = await storage.getAgent(req.params.id);
       if (!agent) {
@@ -37,7 +73,7 @@ export async function registerRoutes(
   });
 
   // Create a new agent
-  app.post("/api/agents", async (req, res) => {
+  app.post("/api/agents", optionalAuth, async (req, res) => {
     try {
       const validatedData = insertAgentSchema.parse(req.body);
       const agent = await storage.createAgent(validatedData);
@@ -52,7 +88,7 @@ export async function registerRoutes(
   });
 
   // Update agent settings
-  app.patch("/api/agents/:id", async (req, res) => {
+  app.patch("/api/agents/:id", optionalAuth, async (req, res) => {
     try {
       const validatedData = updateAgentSettingsSchema.parse(req.body);
       const agent = await storage.updateAgentSettings(req.params.id, validatedData);
@@ -70,7 +106,7 @@ export async function registerRoutes(
   });
 
   // Delete an agent
-  app.delete("/api/agents/:id", async (req, res) => {
+  app.delete("/api/agents/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
       const deleted = await storage.deleteAgent(req.params.id);
       if (!deleted) {
@@ -84,7 +120,7 @@ export async function registerRoutes(
   });
 
   // Get agent statistics
-  app.get("/api/stats", async (req, res) => {
+  app.get("/api/stats", optionalAuth, async (req, res) => {
     try {
       const agents = await storage.getAllAgents();
       
@@ -124,7 +160,7 @@ export async function registerRoutes(
   // ===== Custom Profiles API =====
 
   // Get custom profiles for an agent
-  app.get("/api/agents/:id/profiles", async (req, res) => {
+  app.get("/api/agents/:id/profiles", optionalAuth, async (req, res) => {
     try {
       const profiles = await storage.getCustomProfiles(req.params.id);
       res.json(profiles);
@@ -135,7 +171,7 @@ export async function registerRoutes(
   });
 
   // Get all shared profiles
-  app.get("/api/profiles/shared", async (req, res) => {
+  app.get("/api/profiles/shared", optionalAuth, async (req, res) => {
     try {
       const profiles = await storage.getSharedProfiles();
       res.json(profiles);
@@ -146,7 +182,7 @@ export async function registerRoutes(
   });
 
   // Create a custom profile
-  app.post("/api/profiles", async (req, res) => {
+  app.post("/api/profiles", optionalAuth, async (req, res) => {
     try {
       const validatedData = insertCustomProfileSchema.parse(req.body);
       const profile = await storage.createCustomProfile(validatedData);
@@ -161,7 +197,7 @@ export async function registerRoutes(
   });
 
   // Delete a custom profile
-  app.delete("/api/profiles/:id", async (req, res) => {
+  app.delete("/api/profiles/:id", requireAuth, async (req, res) => {
     try {
       const deleted = await storage.deleteCustomProfile(req.params.id);
       if (!deleted) {
@@ -177,7 +213,7 @@ export async function registerRoutes(
   // ===== Team Presets API =====
 
   // Get all team presets
-  app.get("/api/team-presets", async (req, res) => {
+  app.get("/api/team-presets", optionalAuth, async (req, res) => {
     try {
       const presets = await storage.getAllTeamPresets();
       res.json(presets);
@@ -188,7 +224,7 @@ export async function registerRoutes(
   });
 
   // Get active team presets
-  app.get("/api/team-presets/active", async (req, res) => {
+  app.get("/api/team-presets/active", optionalAuth, async (req, res) => {
     try {
       const presets = await storage.getActiveTeamPresets();
       res.json(presets);
@@ -199,7 +235,7 @@ export async function registerRoutes(
   });
 
   // Create a team preset
-  app.post("/api/team-presets", async (req, res) => {
+  app.post("/api/team-presets", requireAuth, requireAdmin, async (req, res) => {
     try {
       const validatedData = insertTeamPresetSchema.parse(req.body);
       const preset = await storage.createTeamPreset(validatedData);
@@ -213,22 +249,26 @@ export async function registerRoutes(
     }
   });
 
-  // Update a team preset
-  app.patch("/api/team-presets/:id", async (req, res) => {
+  // Update a team preset - NOW WITH VALIDATION
+  app.patch("/api/team-presets/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const preset = await storage.updateTeamPreset(req.params.id, req.body);
+      const validatedData = updateTeamPresetSchema.parse(req.body);
+      const preset = await storage.updateTeamPreset(req.params.id, validatedData);
       if (!preset) {
         return res.status(404).json({ error: "Preset not found" });
       }
       res.json(preset);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid preset data", details: error.errors });
+      }
       console.error("Error updating preset:", error);
       res.status(500).json({ error: "Failed to update preset" });
     }
   });
 
   // Delete a team preset
-  app.delete("/api/team-presets/:id", async (req, res) => {
+  app.delete("/api/team-presets/:id", requireAuth, requireAdmin, async (req, res) => {
     try {
       const deleted = await storage.deleteTeamPreset(req.params.id);
       if (!deleted) {
@@ -244,7 +284,7 @@ export async function registerRoutes(
   // ===== Usage Analytics API =====
 
   // Get aggregated stats
-  app.get("/api/analytics/summary", async (req, res) => {
+  app.get("/api/analytics/summary", optionalAuth, async (req, res) => {
     try {
       const stats = await storage.getAggregatedStats();
       res.json(stats);
@@ -255,7 +295,7 @@ export async function registerRoutes(
   });
 
   // Get stats for a specific agent
-  app.get("/api/analytics/agent/:id", async (req, res) => {
+  app.get("/api/analytics/agent/:id", optionalAuth, async (req, res) => {
     try {
       const days = parseInt(req.query.days as string) || 30;
       const stats = await storage.getAgentStats(req.params.id, days);
@@ -266,12 +306,16 @@ export async function registerRoutes(
     }
   });
 
-  // Record usage
-  app.post("/api/analytics/record", async (req, res) => {
+  // Record usage - NOW WITH VALIDATION
+  app.post("/api/analytics/record", optionalAuth, async (req, res) => {
     try {
-      const stats = await storage.recordUsage(req.body);
+      const validatedData = insertUsageStatsSchema.parse(req.body);
+      const stats = await storage.recordUsage(validatedData);
       res.status(201).json(stats);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid usage data", details: error.errors });
+      }
       console.error("Error recording usage:", error);
       res.status(500).json({ error: "Failed to record usage" });
     }
@@ -280,7 +324,7 @@ export async function registerRoutes(
   // ===== Recordings API =====
 
   // Get recordings for an agent
-  app.get("/api/agents/:id/recordings", async (req, res) => {
+  app.get("/api/agents/:id/recordings", optionalAuth, async (req, res) => {
     try {
       const recordings = await storage.getRecordings(req.params.id);
       res.json(recordings);
@@ -290,19 +334,23 @@ export async function registerRoutes(
     }
   });
 
-  // Create a recording
-  app.post("/api/recordings", async (req, res) => {
+  // Create a recording - NOW WITH VALIDATION
+  app.post("/api/recordings", optionalAuth, async (req, res) => {
     try {
-      const recording = await storage.createRecording(req.body);
+      const validatedData = insertRecordingSchema.parse(req.body);
+      const recording = await storage.createRecording(validatedData);
       res.status(201).json(recording);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid recording data", details: error.errors });
+      }
       console.error("Error creating recording:", error);
       res.status(500).json({ error: "Failed to create recording" });
     }
   });
 
   // Delete a recording
-  app.delete("/api/recordings/:id", async (req, res) => {
+  app.delete("/api/recordings/:id", requireAuth, async (req, res) => {
     try {
       const deleted = await storage.deleteRecording(req.params.id);
       if (!deleted) {

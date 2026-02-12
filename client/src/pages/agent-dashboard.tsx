@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AudioControls } from "@/components/audio-controls";
 import { CustomProfiles } from "@/components/custom-profiles";
@@ -17,6 +17,7 @@ import { SetupWizard } from "@/components/setup-wizard";
 import { apiRequest } from "@/lib/queryClient";
 import type { AudioSettings, AgentStatusType, Agent } from "@shared/schema";
 import { defaultAudioSettings } from "@shared/schema";
+import { debounce } from "lodash-es";
 import {
   Tooltip,
   TooltipContent,
@@ -57,9 +58,11 @@ export default function AgentDashboard() {
     enabled: !!agentId,
   });
 
-  // Sync settings from server when agent data loads
+  // Sync settings from server when agent data loads (but don't overwrite during mutation)
+  const isMutatingRef = useRef(false);
+  
   useEffect(() => {
-    if (agentData) {
+    if (agentData && !isMutatingRef.current) {
       setSettings(agentData.audioSettings);
       setAgentStatus(agentData.status as AgentStatusType);
       setAgentName(agentData.name);
@@ -89,7 +92,8 @@ export default function AgentDashboard() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Registration error:", error);
       toast({
         title: "Registration failed",
         description: "Could not register. Please try again.",
@@ -98,28 +102,84 @@ export default function AgentDashboard() {
     },
   });
 
-  // Update agent settings mutation
+  // Update agent settings mutation with error handling and optimistic updates
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: { audioSettings?: Partial<AudioSettings>; status?: AgentStatusType; isProcessingActive?: boolean }) => {
       if (!agentId) throw new Error("No agent ID");
       const response = await apiRequest("PATCH", `/api/agents/${agentId}`, data);
       return (await response.json()) as Agent;
     },
+    onMutate: async (newData) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/agents", agentId] });
+      
+      // Mark that we're mutating
+      isMutatingRef.current = true;
+
+      // Snapshot the previous value
+      const previousAgent = queryClient.getQueryData<Agent>(["/api/agents", agentId]);
+
+      // Optimistically update to the new value
+      if (previousAgent) {
+        queryClient.setQueryData<Agent>(["/api/agents", agentId], {
+          ...previousAgent,
+          ...newData,
+          audioSettings: newData.audioSettings 
+            ? { ...previousAgent.audioSettings, ...newData.audioSettings }
+            : previousAgent.audioSettings,
+          updatedAt: new Date(),
+        });
+      }
+
+      return { previousAgent };
+    },
+    onError: (error, variables, context) => {
+      // Revert to previous value on error
+      if (context?.previousAgent) {
+        queryClient.setQueryData(["/api/agents", agentId], context.previousAgent);
+      }
+      
+      console.error("Settings update error:", error);
+      toast({
+        title: "Update failed",
+        description: "Could not save settings. Changes reverted.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
     },
+    onSettled: () => {
+      // Mark mutation as complete
+      isMutatingRef.current = false;
+    },
   });
+
+  // CRITICAL FIX: Debounced settings update
+  const debouncedUpdateSettings = useMemo(
+    () => debounce((newSettings: Partial<AudioSettings>) => {
+      if (agentId) {
+        updateSettingsMutation.mutate({ audioSettings: newSettings });
+      }
+    }, 300), // 300ms debounce
+    [agentId, updateSettingsMutation]
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedUpdateSettings.cancel();
+    };
+  }, [debouncedUpdateSettings]);
 
   const handleSettingsChange = useCallback((newSettings: Partial<AudioSettings>) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
-      // Debounced sync to server
-      if (agentId) {
-        updateSettingsMutation.mutate({ audioSettings: newSettings });
-      }
+      // Debounced sync to server - FIXED!
+      debouncedUpdateSettings(newSettings);
       return updated;
     });
-  }, [agentId, updateSettingsMutation]);
+  }, [debouncedUpdateSettings]);
 
   const handleStartCall = useCallback(() => {
     setIsOnCall(true);
@@ -140,18 +200,36 @@ export default function AgentDashboard() {
   }, [agentId, updateSettingsMutation]);
 
   const handleInitialize = useCallback(async () => {
-    await audioProcessor.initialize();
-    if (agentId) {
-      updateSettingsMutation.mutate({ isProcessingActive: true });
+    try {
+      await audioProcessor.initialize();
+      if (agentId) {
+        updateSettingsMutation.mutate({ isProcessingActive: true });
+      }
+    } catch (error) {
+      console.error("Audio initialization error:", error);
+      toast({
+        title: "Initialization failed",
+        description: error instanceof Error ? error.message : "Could not start audio processing",
+        variant: "destructive",
+      });
     }
-  }, [audioProcessor, agentId, updateSettingsMutation]);
+  }, [audioProcessor, agentId, updateSettingsMutation, toast]);
 
   const handleStop = useCallback(() => {
-    audioProcessor.stop();
-    if (agentId) {
-      updateSettingsMutation.mutate({ isProcessingActive: false });
+    try {
+      audioProcessor.stop();
+      if (agentId) {
+        updateSettingsMutation.mutate({ isProcessingActive: false });
+      }
+    } catch (error) {
+      console.error("Audio stop error:", error);
+      toast({
+        title: "Stop failed",
+        description: "Could not stop audio processing",
+        variant: "destructive",
+      });
     }
-  }, [audioProcessor, agentId, updateSettingsMutation]);
+  }, [audioProcessor, agentId, updateSettingsMutation, toast]);
 
   const handleSetup = () => {
     if (setupName.trim()) {
@@ -195,6 +273,7 @@ export default function AgentDashboard() {
               onClick={handleSetup} 
               disabled={!setupName.trim() || createAgentMutation.isPending}
               data-testid="button-register"
+              type="submit"
             >
               {createAgentMutation.isPending ? "Registering..." : "Get Started"}
             </Button>

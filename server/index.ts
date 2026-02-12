@@ -2,6 +2,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 const httpServer = createServer(app);
@@ -12,6 +15,33 @@ declare module "http" {
   }
 }
 
+// Security middleware - MUST be early in middleware chain
+app.use(helmet({
+  contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
+  crossOriginEmbedderPolicy: false, // Needed for dev tools
+}));
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === "production" 
+    ? process.env.ALLOWED_ORIGINS?.split(",") || false
+    : "http://localhost:5000",
+  credentials: true,
+}));
+
+// Rate limiting - prevent DoS attacks
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Max 100 requests per window per IP
+  message: { error: "Too many requests, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to all API routes
+app.use("/api/", apiLimiter);
+
+// Body parsers
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -85,14 +115,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  httpServer.listen(port, "0.0.0.0", () => {
+    log(`serving on port ${port}`);
+  });
 })();
