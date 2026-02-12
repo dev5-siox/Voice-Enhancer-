@@ -321,12 +321,16 @@ export function useAudioProcessor(settings: AudioSettings) {
           d.label.toLowerCase().includes('headphone')
         ) || outputDevices[0];
         
-        // 1. MONITOR OUTPUT - Always route to speakers so user can hear processed voice
+        // 1. MONITOR OUTPUT - OPTIONAL route to speakers so user can hear processed voice
+        // DON'T auto-enable - let user explicitly enable it
         if (!monitorOutputRef.current) {
           monitorOutputRef.current = new Audio();
-          monitorOutputRef.current.autoplay = true;
+          // Don't set autoplay - browser will block it anyway
         }
+        
+        // Set up the stream but don't play yet
         monitorOutputRef.current.srcObject = destination.stream;
+        monitorOutputRef.current.volume = 0.5; // 50% volume to prevent feedback
         
         // Try to set monitor to speakers/headphones (not virtual cable)
         if (defaultOutput && 'setSinkId' in monitorOutputRef.current) {
@@ -348,8 +352,16 @@ export function useAudioProcessor(settings: AudioSettings) {
             console.log("VoxFilter: Using default output for monitor");
           }
         }
-        await monitorOutputRef.current.play();
-        console.log("VoxFilter: MONITOR ENABLED - You can now hear your processed voice!");
+        
+        // TRY to auto-play, but don't fail if browser blocks it
+        try {
+          await monitorOutputRef.current.play();
+          console.log("VoxFilter: MONITOR AUTO-ENABLED - You can hear your processed voice!");
+          setState((prev) => ({ ...prev, isOutputEnabled: true }));
+        } catch (playErr) {
+          console.log("VoxFilter: Auto-play blocked. User must click 'Enable Audio Output' button.");
+          // User will need to click the "Enable Audio Output" button
+        }
         
         // 2. VIRTUAL CABLE OUTPUT - Route to VB-Audio/BlackHole for RingCentral
         if (!audioOutputRef.current) {
@@ -716,30 +728,61 @@ export function useAudioProcessor(settings: AudioSettings) {
 
   // Start recording
   const startRecording = useCallback(() => {
-    if (!processedStreamRef.current) return;
+    try {
+      const trackCount = processedStreamRef.current?.getAudioTracks?.().length ?? 0;
+      console.log("VoxFilter: startRecording() called. processedStream tracks:", trackCount);
+    } catch {
+      // ignore
+    }
+    if (!processedStreamRef.current) {
+      console.warn("VoxFilter: Cannot record - processed stream not ready yet");
+      setState((prev) => ({ ...prev, error: "Recording unavailable: audio processing not ready yet." }));
+      return;
+    }
 
-    recordedChunksRef.current = [];
-    const mediaRecorder = new MediaRecorder(processedStreamRef.current, {
-      mimeType: 'audio/webm;codecs=opus',
-    });
+    try {
+      recordedChunksRef.current = [];
 
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        recordedChunksRef.current.push(event.data);
-      }
-    };
+      // Prefer Opus-in-WebM, but fall back gracefully (prevents crashes in some environments).
+      const preferredTypes = ['audio/webm;codecs=opus', 'audio/webm'];
+      const chosenType = preferredTypes.find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(t));
+      console.log("VoxFilter: MediaRecorder chosenType:", chosenType || "(default)");
 
-    mediaRecorder.start(1000); // Collect data every second
-    mediaRecorderRef.current = mediaRecorder;
-    recordingStartTimeRef.current = Date.now();
+      const mediaRecorder = new MediaRecorder(
+        processedStreamRef.current,
+        chosenType ? { mimeType: chosenType } : undefined
+      );
 
-    // Update recording duration
-    recordingIntervalRef.current = window.setInterval(() => {
-      const duration = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-      setState((prev) => ({ ...prev, recordingDuration: duration }));
-    }, 1000);
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
 
-    setState((prev) => ({ ...prev, isRecording: true, recordingDuration: 0 }));
+      mediaRecorder.onerror = (event) => {
+        console.error("VoxFilter: MediaRecorder error:", event);
+        setState((prev) => ({ ...prev, error: "Recording error: MediaRecorder failed. See console for details." }));
+      };
+
+      mediaRecorder.start(1000); // Collect data every second
+      mediaRecorderRef.current = mediaRecorder;
+      recordingStartTimeRef.current = Date.now();
+
+      // Update recording duration
+      recordingIntervalRef.current = window.setInterval(() => {
+        const duration = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+        setState((prev) => ({ ...prev, recordingDuration: duration }));
+      }, 1000);
+
+      console.log("VoxFilter: Recording started, updating UI state");
+      setState((prev) => ({ ...prev, isRecording: true, recordingDuration: 0, error: null }));
+    } catch (error) {
+      console.error("VoxFilter: Failed to start recording:", error);
+      setState((prev) => ({
+        ...prev,
+        error: error instanceof Error ? `Recording failed: ${error.message}` : "Recording failed to start.",
+      }));
+    }
   }, []);
 
   // Stop recording and return blob
@@ -752,6 +795,12 @@ export function useAudioProcessor(settings: AudioSettings) {
 
       mediaRecorderRef.current.onstop = () => {
         const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+        console.log(
+          "VoxFilter: stopRecording() complete. chunks:",
+          recordedChunksRef.current.length,
+          "blob.size:",
+          blob.size
+        );
         recordedChunksRef.current = [];
         resolve(blob);
       };
@@ -845,28 +894,31 @@ export function useAudioProcessor(settings: AudioSettings) {
     }
 
     try {
-      // Create or reuse audio element
-      if (!audioOutputRef.current) {
-        audioOutputRef.current = new Audio();
-        audioOutputRef.current.autoplay = true;
+      // CRITICAL FIX: Play the MONITOR audio (this is what lets you HEAR the processed audio!)
+      if (monitorOutputRef.current) {
+        monitorOutputRef.current.volume = 0.5; // 50% volume to prevent feedback
+        await monitorOutputRef.current.play();
+        console.log("VoxFilter: ✅ MONITOR ENABLED - You can now hear your processed voice!");
       }
-
-      // Set the processed stream as source
-      audioOutputRef.current.srcObject = processedStreamRef.current;
-
-      // Try to set output device if specified and browser supports it
-      if (deviceId && 'setSinkId' in audioOutputRef.current) {
-        try {
-          await (audioOutputRef.current as any).setSinkId(deviceId);
-          console.log("VoxFilter: Audio output set to device:", deviceId);
-          setState(prev => ({ ...prev, outputDeviceId: deviceId }));
-        } catch (sinkErr) {
-          console.warn("VoxFilter: Could not set output device, using default:", sinkErr);
+      
+      // Also create virtual cable output if device specified (for RingCentral/Zoom)
+      if (deviceId) {
+        if (!audioOutputRef.current) {
+          audioOutputRef.current = new Audio();
         }
+        audioOutputRef.current.srcObject = processedStreamRef.current;
+        
+        if ('setSinkId' in audioOutputRef.current) {
+          try {
+            await (audioOutputRef.current as any).setSinkId(deviceId);
+            console.log("VoxFilter: Virtual cable output set to device:", deviceId);
+            setState(prev => ({ ...prev, outputDeviceId: deviceId }));
+          } catch (sinkErr) {
+            console.warn("VoxFilter: Could not set output device, using default:", sinkErr);
+          }
+        }
+        await audioOutputRef.current.play();
       }
-
-      // Start playback
-      await audioOutputRef.current.play();
       
       setState(prev => ({ ...prev, isOutputEnabled: true }));
       console.log("VoxFilter: Audio output enabled - processed audio now playing to system output");
@@ -879,10 +931,17 @@ export function useAudioProcessor(settings: AudioSettings) {
 
   // Disable audio output
   const disableOutput = useCallback(() => {
+    // Stop monitor audio
+    if (monitorOutputRef.current) {
+      monitorOutputRef.current.pause();
+    }
+    
+    // Stop virtual cable output
     if (audioOutputRef.current) {
       audioOutputRef.current.pause();
       audioOutputRef.current.srcObject = null;
     }
+    
     setState(prev => ({ ...prev, isOutputEnabled: false, outputDeviceId: null }));
     console.log("VoxFilter: Audio output disabled");
   }, []);
