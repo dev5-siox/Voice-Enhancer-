@@ -793,20 +793,26 @@ export function useAudioProcessor(settings: AudioSettings) {
     }
   }, [settings.outputGain]);
 
-  // Update noise reduction when settings change
+  // Update noise reduction when settings change - ONLY if processing is active
   useEffect(() => {
-    applyNoiseReductionSettings(settings);
-  }, [settings.noiseReductionEnabled, settings.noiseReductionLevel, applyNoiseReductionSettings]);
+    if (audioContextRef.current && state.isProcessing) {
+      applyNoiseReductionSettings(settings);
+    }
+  }, [settings.noiseReductionEnabled, settings.noiseReductionLevel, applyNoiseReductionSettings, state.isProcessing]);
 
-  // Update accent settings when they change
+  // Update accent settings when they change - ONLY if processing is active
   useEffect(() => {
-    applyAccentSettings(settings);
-  }, [settings.accentModifierEnabled, settings.accentPreset, settings.formantShift, applyAccentSettings]);
+    if (audioContextRef.current && state.isProcessing) {
+      applyAccentSettings(settings);
+    }
+  }, [settings.accentModifierEnabled, settings.accentPreset, settings.formantShift, applyAccentSettings, state.isProcessing]);
 
-  // Update enhancement settings when they change
+  // Update enhancement settings when they change - ONLY if processing is active
   useEffect(() => {
-    applyEnhancementSettings(settings);
-  }, [settings.clarityBoost, settings.volumeNormalization, applyEnhancementSettings]);
+    if (audioContextRef.current && state.isProcessing) {
+      applyEnhancementSettings(settings);
+    }
+  }, [settings.clarityBoost, settings.volumeNormalization, applyEnhancementSettings, state.isProcessing]);
 
   // Cleanup on unmount
   useEffect(() => {
