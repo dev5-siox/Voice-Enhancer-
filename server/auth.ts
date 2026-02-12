@@ -192,16 +192,29 @@ function cleanExpiredSessions() {
 setInterval(cleanExpiredSessions, 60 * 60 * 1000);
 
 /**
- * Optional middleware for development - allows bypassing auth
+ * Optional auth middleware - attaches user if session exists, but allows unauthenticated requests through
  */
 export function optionalAuth(req: Request, res: Response, next: NextFunction) {
-  // In development mode, allow bypassing auth with ?dev=true
-  if (process.env.NODE_ENV === "development" && req.query.dev === "true") {
-    req.user = DEFAULT_ADMIN;
+  const sessionId = req.headers.authorization?.replace("Bearer ", "") || 
+                    req.cookies?.sessionId;
+
+  if (!sessionId) {
     return next();
   }
 
-  requireAuth(req, res, next);
+  const session = sessions.get(sessionId);
+  if (!session || Date.now() > session.expiresAt) {
+    if (session) sessions.delete(sessionId);
+    return next();
+  }
+
+  const user = users.get(session.userId);
+  if (user) {
+    req.user = user;
+    req.sessionId = sessionId;
+  }
+
+  next();
 }
 
 /**
