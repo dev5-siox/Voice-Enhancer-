@@ -1,0 +1,131 @@
+{
+  "agents": [
+    [
+      "id_1_1770926719383",
+      {
+        "id": "id_1_1770926719383",
+        "name": "Sarah Johnson",
+        "email": "sarah.j@company.com",
+        "status": "busy",
+        "isProcessingActive": true,
+        "audioSettings": {
+          "noiseReductionEnabled": true,
+          "noiseReductionLevel": 50,
+          "accentModifierEnabled": false,
+          "accentPreset": "neutral",
+          "pitchShift": 0,
+          "formantShift": 0,
+          "inputGain": 100,
+          "outputGain": 100,
+          "clarityBoost": 0,
+          "volumeNormalization": false
+        },
+        "createdAt": "2026-02-12T20:05:19.383Z",
+        "updatedAt": "2026-02-12T20:05:19.383Z"
+      }
+    ],
+    [
+      "id_2_1770926719383",
+      {
+        "id": "id_2_1770926719383",
+        "name": "Michael Chen",
+        "email": "m.chen@company.com",
+        "status": "online",
+        "isProcessingActive": true,
+        "audioSettings": {
+          "noiseReductionEnabled": true,
+          "noiseReductionLevel": 50,
+          "accentModifierEnabled": true,
+          "accentPreset": "warm",
+          "pitchShift": 0,
+          "formantShift": 0,
+          "inputGain": 100,
+          "outputGain": 100,
+          "clarityBoost": 0,
+          "volumeNormalization": false
+        },
+        "createdAt": "2026-02-12T20:05:19.383Z",
+        "updatedAt": "2026-02-12T20:05:19.383Z"
+      }
+    ],
+    [
+      "id_3_1770926719383",
+      {
+        "id": "id_3_1770926719383",
+        "name": "Emily Rodriguez",
+        "email": "e.rodriguez@company.com",
+        "status": "busy",
+        "isProcessingActive": true,
+        "audioSettings": {
+          "noiseReductionEnabled": true,
+          "noiseReductionLevel": 75,
+          "accentModifierEnabled": false,
+          "accentPreset": "neutral",
+          "pitchShift": 0,
+          "formantShift": 0,
+          "inputGain": 100,
+          "outputGain": 100,
+          "clarityBoost": 0,
+          "volumeNormalization": false
+        },
+        "createdAt": "2026-02-12T20:05:19.383Z",
+        "updatedAt": "2026-02-12T20:05:19.383Z"
+      }
+    ],
+    [
+      "id_4_1770926719383",
+      {
+        "id": "id_4_1770926719383",
+        "name": "David Kim",
+        "email": "d.kim@company.com",
+        "status": "online",
+        "isProcessingActive": false,
+        "audioSettings": {
+          "noiseReductionEnabled": true,
+          "noiseReductionLevel": 50,
+          "accentModifierEnabled": false,
+          "accentPreset": "neutral",
+          "pitchShift": 0,
+          "formantShift": 0,
+          "inputGain": 100,
+          "outputGain": 100,
+          "clarityBoost": 0,
+          "volumeNormalization": false
+        },
+        "createdAt": "2026-02-12T20:05:19.383Z",
+        "updatedAt": "2026-02-12T20:05:19.383Z"
+      }
+    ],
+    [
+      "id_5_1770926719383",
+      {
+        "id": "id_5_1770926719383",
+        "name": "Jessica Martinez",
+        "email": "j.martinez@company.com",
+        "status": "away",
+        "isProcessingActive": false,
+        "audioSettings": {
+          "noiseReductionEnabled": true,
+          "noiseReductionLevel": 50,
+          "accentModifierEnabled": false,
+          "accentPreset": "neutral",
+          "pitchShift": 0,
+          "formantShift": 0,
+          "inputGain": 100,
+          "outputGain": 100,
+          "clarityBoost": 0,
+          "volumeNormalization": false
+        },
+        "createdAt": "2026-02-12T20:05:19.383Z",
+        "updatedAt": "2026-02-12T20:05:19.383Z"
+      }
+    ]
+  ],
+  "customProfiles": [],
+  "teamPresets": [],
+  "usageStats": [],
+  "recordings": [],
+  "idCounter": 5,
+  "version": 1,
+  "savedAt": "2026-02-12T20:15:19.298Z"
+}
