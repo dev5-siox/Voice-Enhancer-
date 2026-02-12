@@ -594,7 +594,7 @@ export function useAudioProcessor(settings: AudioSettings) {
   // Stop audio processing
   const stop = useCallback(() => {
     // Stop recording if active
-    if (mediaRecorderRef.current && state.isRecording) {
+    if (mediaRecorderRef.current) {
       try {
         mediaRecorderRef.current.ondataavailable = null;
         mediaRecorderRef.current.onstop = null;
@@ -724,7 +724,7 @@ export function useAudioProcessor(settings: AudioSettings) {
       processedStreamId: null,
       recordingDuration: 0,
     }));
-  }, [state.isRecording]);
+  }, []);
 
   // Start recording
   const startRecording = useCallback(() => {
@@ -764,7 +764,9 @@ export function useAudioProcessor(settings: AudioSettings) {
         setState((prev) => ({ ...prev, error: "Recording error: MediaRecorder failed. See console for details." }));
       };
 
-      mediaRecorder.start(1000); // Collect data every second
+      // In some Chromium/automation environments, audio-only MediaRecorder with timeslice
+      // can yield no chunks. Rely on the final dataavailable fired on stop().
+      mediaRecorder.start();
       mediaRecorderRef.current = mediaRecorder;
       recordingStartTimeRef.current = Date.now();
 
