@@ -51,7 +51,7 @@ const windowsSteps: SetupStep[] = [
     details: [
       "Right-click speaker icon in taskbar → 'Sound settings'",
       "Under 'Output', select 'CABLE Input (VB-Audio Virtual Cable)'",
-      "This routes VoicePro's processed audio through the cable",
+      "This routes VoxFilter's processed audio through the cable",
       "Note: You won't hear other audio until you plug in headphones or revert this setting after calls"
     ]
   },
@@ -68,10 +68,10 @@ const windowsSteps: SetupStep[] = [
   },
   {
     id: "voicepro",
-    title: "Start VoicePro and Enable Output",
+    title: "Start VoxFilter and Enable Output",
     description: "Process audio and route it to the virtual cable",
     details: [
-      "In VoicePro, select your physical microphone (headset, USB mic, etc.)",
+      "In VoxFilter, select your physical microphone (headset, USB mic, etc.)",
       "Click 'Start Audio Processing'",
       "Scroll down and click 'Enable Output to Virtual Cable' button (CRITICAL!)",
       "The Virtual Cable Output card should show 'Active' in green"
@@ -84,7 +84,7 @@ const windowsSteps: SetupStep[] = [
     details: [
       "In RingCentral Settings → Audio, click 'Test' for microphone",
       "Speak into your mic - you should see audio activity in RingCentral",
-      "If no audio, make sure 'Enable Output to Virtual Cable' is clicked in VoicePro"
+      "If no audio, make sure 'Enable Output to Virtual Cable' is clicked in VoxFilter"
     ]
   }
 ];
@@ -120,7 +120,7 @@ const macSteps: SetupStep[] = [
     details: [
       "Go to System Preferences → Sound → Output",
       "Select the 'Multi-Output Device' you just created",
-      "VoicePro output now goes to both your headphones AND BlackHole",
+      "VoxFilter output now goes to both your headphones AND BlackHole",
       "Note: Volume control may be limited with multi-output devices"
     ]
   },
@@ -137,10 +137,10 @@ const macSteps: SetupStep[] = [
   },
   {
     id: "voicepro",
-    title: "Start VoicePro and Enable Output",
+    title: "Start VoxFilter and Enable Output",
     description: "Process audio and route it to the virtual device",
     details: [
-      "In VoicePro, select your physical microphone",
+      "In VoxFilter, select your physical microphone",
       "Click 'Start Audio Processing'",
       "Scroll down and click 'Enable Output to Virtual Cable' button (CRITICAL!)",
       "The Virtual Cable Output card should show 'Active' in green"
@@ -183,7 +183,7 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
             RingCentral Desktop Setup Guide
           </DialogTitle>
           <DialogDescription>
-            Follow these steps to route VoicePro audio to the RingCentral desktop app
+            Follow these steps to route VoxFilter audio to the RingCentral desktop app
           </DialogDescription>
         </DialogHeader>
 
@@ -226,7 +226,7 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {audioFlowing 
-                        ? "VoicePro is processing. Check RingCentral mic test."
+                        ? "VoxFilter is processing. Check RingCentral mic test."
                         : "Start processing and speak to verify audio flow"
                       }
                     </p>
@@ -313,7 +313,7 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
               <div className="text-xs font-mono text-muted-foreground space-y-1">
                 <p>Your Physical Mic</p>
                 <p className="text-primary">       ↓</p>
-                <p>VoicePro (Chrome) - processes audio</p>
+                <p>VoxFilter (Chrome) - processes audio</p>
                 <p className="text-primary">       ↓</p>
                 <p>{platform === "windows" ? "CABLE Input (VB-Audio)" : "Multi-Output Device"}</p>
                 <p className="text-primary">       ↓</p>

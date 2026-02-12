@@ -443,7 +443,7 @@ export function AudioControls({
                   <div>
                     <p className="font-medium">Processed audio is now active</p>
                     <p className="text-xs mt-1 opacity-80">
-                      VoicePro is outputting your modified voice. Select "CABLE Input (VB-Audio)" below to route to RingCentral.
+                      VoxFilter is outputting your modified voice. Select "CABLE Input (VB-Audio)" below to route to RingCentral.
                     </p>
                   </div>
                 </div>

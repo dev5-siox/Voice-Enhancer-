@@ -1,7 +1,7 @@
-# VoicePro - Audio Processing for Sales Teams
+# VoxFilter - Audio Processing for Sales Teams
 
 ## Overview
-VoicePro is an audio processing application for sales teams using RingCentral for outbound calling. Available as both a web app and Electron desktop app. The desktop app provides guaranteed RingCentral integration with native audio device routing. Designed to support up to 50 concurrent agents.
+VoxFilter is an audio processing application for sales teams using RingCentral for outbound calling. Available as both a web app and Electron desktop app. The desktop app provides guaranteed RingCentral integration with native audio device routing. Designed to support up to 50 concurrent agents.
 
 ## Current State
 - **Phase 3 Complete**: Desktop app with native audio routing
@@ -82,9 +82,9 @@ VoicePro is an audio processing application for sales teams using RingCentral fo
 - **Voice Modification**: Current implementation uses pitch shifting via filter adjustments. Advanced formant-based accent modification would require additional DSP libraries.
 
 ## Integration Options
-1. **Desktop App (Recommended)**: Use VoicePro Desktop for guaranteed RingCentral integration with auto-configuration
+1. **Desktop App (Recommended)**: Use VoxFilter Desktop for guaranteed RingCentral integration with auto-configuration
 2. **Browser + Virtual Cable**: Use browser version with manual VB-Audio/BlackHole setup (less reliable)
-3. **Standalone Mode**: Use VoicePro to monitor and visualize audio processing
+3. **Standalone Mode**: Use VoxFilter to monitor and visualize audio processing
 
 ## Electron Desktop App
 The desktop app provides native audio device control:

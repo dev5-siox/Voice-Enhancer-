@@ -87,7 +87,7 @@ export default function AgentDashboard() {
       localStorage.setItem(AGENT_NAME_KEY, agent.name);
       setShowSetupDialog(false);
       toast({
-        title: "Welcome to VoicePro",
+        title: "Welcome to VoxFilter",
         description: `You're registered as ${agent.name}`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
@@ -250,7 +250,7 @@ export default function AgentDashboard() {
       <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Welcome to VoicePro</DialogTitle>
+            <DialogTitle>Welcome to VoxFilter</DialogTitle>
             <DialogDescription>
               Enter your name to get started with audio processing for your RingCentral calls.
             </DialogDescription>
@@ -324,7 +324,7 @@ export default function AgentDashboard() {
                   <ol className="text-xs list-decimal ml-3 space-y-0.5">
                     <li>Start audio processing below to filter your mic</li>
                     <li>For full integration, use a virtual audio cable app (e.g., VB-Audio, Blackhole)</li>
-                    <li>Route VoicePro output to the virtual device</li>
+                    <li>Route VoxFilter output to the virtual device</li>
                     <li>Select the virtual device as your mic in RingCentral</li>
                   </ol>
                   <p className="text-xs mt-2 text-muted-foreground">
@@ -423,7 +423,7 @@ export default function AgentDashboard() {
                 <div className="flex items-center gap-2 text-sm">
                   <Monitor className="w-4 h-4 text-blue-500" />
                   <span className="text-muted-foreground">
-                    For guaranteed RingCentral integration, use the <span className="font-medium text-foreground">VoicePro Desktop App</span>
+                    For guaranteed RingCentral integration, use the <span className="font-medium text-foreground">VoxFilter Desktop App</span>
                   </span>
                 </div>
               </div>

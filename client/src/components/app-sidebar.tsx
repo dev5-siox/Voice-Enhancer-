@@ -45,7 +45,7 @@ export function AppSidebar() {
             <Activity className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="font-semibold text-sm">VoicePro</h2>
+            <h2 className="font-semibold text-sm">VoxFilter</h2>
             <p className="text-xs text-muted-foreground">Audio Processing</p>
           </div>
         </div>

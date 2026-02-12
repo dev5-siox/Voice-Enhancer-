@@ -104,7 +104,7 @@ export function useAudioProcessor(settings: AudioSettings) {
     try {
       // CRITICAL FIX: Prevent concurrent initializations
       if (audioContextRef.current) {
-        console.warn("VoicePro: Already initialized. Call stop() first.");
+        console.warn("VoxFilter: Already initialized. Call stop() first.");
         return;
       }
 
@@ -299,7 +299,7 @@ export function useAudioProcessor(settings: AudioSettings) {
 
       await refreshDevices();
       
-      console.log("VoicePro: Audio processing initialized. Processed stream ID:", destination.stream.id);
+      console.log("VoxFilter: Audio processing initialized. Processed stream ID:", destination.stream.id);
       
       // AUTO-ENABLE OUTPUT: Route processed audio to BOTH virtual cable AND speakers
       // This ensures the user can HEAR their processed voice AND RingCentral receives it
@@ -342,14 +342,14 @@ export function useAudioProcessor(settings: AudioSettings) {
             );
             if (realSpeaker) {
               await (monitorOutputRef.current as any).setSinkId(realSpeaker.deviceId);
-              console.log("VoicePro: MONITOR output set to:", realSpeaker.label);
+              console.log("VoxFilter: MONITOR output set to:", realSpeaker.label);
             }
           } catch (sinkErr) {
-            console.log("VoicePro: Using default output for monitor");
+            console.log("VoxFilter: Using default output for monitor");
           }
         }
         await monitorOutputRef.current.play();
-        console.log("VoicePro: MONITOR ENABLED - You can now hear your processed voice!");
+        console.log("VoxFilter: MONITOR ENABLED - You can now hear your processed voice!");
         
         // 2. VIRTUAL CABLE OUTPUT - Route to VB-Audio/BlackHole for RingCentral
         if (!audioOutputRef.current) {
@@ -361,18 +361,18 @@ export function useAudioProcessor(settings: AudioSettings) {
         if (virtualCable && 'setSinkId' in audioOutputRef.current) {
           try {
             await (audioOutputRef.current as any).setSinkId(virtualCable.deviceId);
-            console.log("VoicePro: Virtual cable output set to:", virtualCable.label);
+            console.log("VoxFilter: Virtual cable output set to:", virtualCable.label);
             setState(prev => ({ ...prev, outputDeviceId: virtualCable.deviceId }));
           } catch (sinkErr) {
-            console.warn("VoicePro: Could not set virtual cable output:", sinkErr);
+            console.warn("VoxFilter: Could not set virtual cable output:", sinkErr);
           }
         }
         
         await audioOutputRef.current.play();
         setState(prev => ({ ...prev, isOutputEnabled: true }));
-        console.log("VoicePro: DUAL OUTPUT ENABLED - Monitor (speakers) + Virtual Cable (RingCentral)");
+        console.log("VoxFilter: DUAL OUTPUT ENABLED - Monitor (speakers) + Virtual Cable (RingCentral)");
       } catch (outputErr) {
-        console.warn("VoicePro: Could not auto-enable output:", outputErr);
+        console.warn("VoxFilter: Could not auto-enable output:", outputErr);
       }
       
     } catch (err) {
@@ -421,7 +421,7 @@ export function useAudioProcessor(settings: AudioSettings) {
     const lp = lowPassRef.current;
     
     if (!f1 || !f2 || !f3 || !vb) {
-      console.log("VoicePro: Formant filters not ready yet - start audio processing first!");
+      console.log("VoxFilter: Formant filters not ready yet - start audio processing first!");
       return;
     }
     
@@ -430,7 +430,7 @@ export function useAudioProcessor(settings: AudioSettings) {
       const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
       const pitchShift = s.pitchShift !== undefined ? s.pitchShift : preset.pitchShift;
       
-      console.log(`%cVoicePro: APPLYING VOICE MOD`, 'color: green; font-weight: bold');
+      console.log(`%cVoxFilter: APPLYING VOICE MOD`, 'color: green; font-weight: bold');
       console.log(`  Preset: ${s.accentPreset}, FormantShift: ${formantShift}, PitchShift: ${pitchShift}`);
       
       // EXTREME formant shifting - these values will be VERY noticeable
@@ -519,7 +519,7 @@ export function useAudioProcessor(settings: AudioSettings) {
         vb.gain.value = 0;
       }
       
-      console.log(`%cVoicePro: FILTERS ACTIVE`, 'color: blue; font-weight: bold');
+      console.log(`%cVoxFilter: FILTERS ACTIVE`, 'color: blue; font-weight: bold');
       console.log(`  F1: ${f1.type} @ ${f1.frequency.value}Hz, gain: ${f1.gain.value.toFixed(1)}dB`);
       console.log(`  F2: ${f2.type} @ ${f2.frequency.value}Hz, gain: ${f2.gain.value.toFixed(1)}dB`);
       console.log(`  F3: ${f3.type} @ ${f3.frequency.value}Hz, gain: ${f3.gain.value.toFixed(1)}dB`);
@@ -546,7 +546,7 @@ export function useAudioProcessor(settings: AudioSettings) {
       if (hp) hp.frequency.value = 80;
       if (lp) lp.frequency.value = 8000;
       
-      console.log("VoicePro: Voice modifier DISABLED - flat response");
+      console.log("VoxFilter: Voice modifier DISABLED - flat response");
     }
   }, []);
 
@@ -823,7 +823,7 @@ export function useAudioProcessor(settings: AudioSettings) {
   // Enable audio output to a specific device (for virtual cable routing)
   const enableOutput = useCallback(async (deviceId?: string) => {
     if (!processedStreamRef.current) {
-      console.error("VoicePro: No processed stream available");
+      console.error("VoxFilter: No processed stream available");
       return false;
     }
 
@@ -841,10 +841,10 @@ export function useAudioProcessor(settings: AudioSettings) {
       if (deviceId && 'setSinkId' in audioOutputRef.current) {
         try {
           await (audioOutputRef.current as any).setSinkId(deviceId);
-          console.log("VoicePro: Audio output set to device:", deviceId);
+          console.log("VoxFilter: Audio output set to device:", deviceId);
           setState(prev => ({ ...prev, outputDeviceId: deviceId }));
         } catch (sinkErr) {
-          console.warn("VoicePro: Could not set output device, using default:", sinkErr);
+          console.warn("VoxFilter: Could not set output device, using default:", sinkErr);
         }
       }
 
@@ -852,10 +852,10 @@ export function useAudioProcessor(settings: AudioSettings) {
       await audioOutputRef.current.play();
       
       setState(prev => ({ ...prev, isOutputEnabled: true }));
-      console.log("VoicePro: Audio output enabled - processed audio now playing to system output");
+      console.log("VoxFilter: Audio output enabled - processed audio now playing to system output");
       return true;
     } catch (err) {
-      console.error("VoicePro: Failed to enable audio output:", err);
+      console.error("VoxFilter: Failed to enable audio output:", err);
       return false;
     }
   }, []);
@@ -867,7 +867,7 @@ export function useAudioProcessor(settings: AudioSettings) {
       audioOutputRef.current.srcObject = null;
     }
     setState(prev => ({ ...prev, isOutputEnabled: false, outputDeviceId: null }));
-    console.log("VoicePro: Audio output disabled");
+    console.log("VoxFilter: Audio output disabled");
   }, []);
 
   // Change output device
@@ -876,10 +876,10 @@ export function useAudioProcessor(settings: AudioSettings) {
       try {
         await (audioOutputRef.current as any).setSinkId(deviceId);
         setState(prev => ({ ...prev, outputDeviceId: deviceId }));
-        console.log("VoicePro: Output device changed to:", deviceId);
+        console.log("VoxFilter: Output device changed to:", deviceId);
         return true;
       } catch (err) {
-        console.error("VoicePro: Failed to change output device:", err);
+        console.error("VoxFilter: Failed to change output device:", err);
         return false;
       }
     }

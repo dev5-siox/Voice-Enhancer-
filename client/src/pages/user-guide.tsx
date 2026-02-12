@@ -79,7 +79,7 @@ export default function UserGuide() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8" data-testid="page-user-guide">
       <div>
-        <h1 className="text-3xl font-bold" data-testid="text-guide-title">VoicePro User Guide</h1>
+        <h1 className="text-3xl font-bold" data-testid="text-guide-title">VoxFilter User Guide</h1>
         <p className="text-muted-foreground mt-1">Complete documentation for the audio processing companion application</p>
       </div>
 
@@ -92,7 +92,7 @@ export default function UserGuide() {
         <Card>
           <CardContent className="pt-6 space-y-4">
             <p className="text-muted-foreground">
-              VoicePro is a browser-based audio processing companion application designed for sales teams making outbound calls. It provides real-time voice enhancement, noise reduction, and accent modification to help agents sound their professional best on every call.
+              VoxFilter is a browser-based audio processing companion application designed for sales teams making outbound calls. It provides real-time voice enhancement, noise reduction, and accent modification to help agents sound their professional best on every call.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -116,7 +116,7 @@ export default function UserGuide() {
             </div>
             <div className="space-y-2">
               <h4 className="font-medium">How It Works</h4>
-              <p className="text-sm text-muted-foreground">VoicePro captures your microphone audio and processes it through a real-time pipeline:</p>
+              <p className="text-sm text-muted-foreground">VoxFilter captures your microphone audio and processes it through a real-time pipeline:</p>
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="secondary">High-pass filter</Badge>
                 <ArrowDown className="w-3 h-3 text-muted-foreground rotate-[-90deg]" />
@@ -143,13 +143,13 @@ export default function UserGuide() {
           <CardContent className="pt-6 space-y-4">
             <h4 className="font-medium">First-Time Setup</h4>
             <ol className="text-sm text-muted-foreground space-y-2 list-decimal pl-5">
-              <li>Open VoicePro in your web browser (Chrome recommended)</li>
+              <li>Open VoxFilter in your web browser (Chrome recommended)</li>
               <li>Enter your name in the welcome dialog to register</li>
               <li>Click <strong>"Get Started"</strong> to access your dashboard</li>
               <li>Allow microphone access when your browser asks</li>
             </ol>
             <p className="text-sm text-muted-foreground">
-              <strong>Returning users:</strong> VoicePro remembers you automatically. Your browser stores your agent ID locally, so you'll go straight to your dashboard with saved settings.
+              <strong>Returning users:</strong> VoxFilter remembers you automatically. Your browser stores your agent ID locally, so you'll go straight to your dashboard with saved settings.
             </p>
             <h4 className="font-medium pt-2">Quick Start Checklist</h4>
             <ul className="text-sm text-muted-foreground space-y-1.5">
@@ -455,13 +455,13 @@ export default function UserGuide() {
                 <p className="text-sm text-muted-foreground">In RingCentral Settings, set Microphone to "CABLE Output (VB-Audio Virtual Cable)". Keep headphones as Speaker.</p>
               </div>
               <div>
-                <h4 className="font-medium text-sm">Step 4: Configure VoicePro</h4>
+                <h4 className="font-medium text-sm">Step 4: Configure VoxFilter</h4>
                 <p className="text-sm text-muted-foreground">Select your physical microphone, click "Start Audio Processing", then scroll down and click "Enable Output to Virtual Cable".</p>
               </div>
             </div>
             <div className="bg-muted/50 rounded-md p-4 text-xs font-mono text-muted-foreground space-y-1">
               <p>Your Physical Mic</p>
-              <p className="pl-4">{"-> VoicePro (Chrome) - processes audio"}</p>
+              <p className="pl-4">{"-> VoxFilter (Chrome) - processes audio"}</p>
               <p className="pl-8">{"-> CABLE Input (VB-Audio) - virtual speaker"}</p>
               <p className="pl-12">{"-> CABLE Output (VB-Audio) - virtual mic"}</p>
               <p className="pl-16">{"-> RingCentral Desktop App"}</p>
@@ -486,7 +486,7 @@ export default function UserGuide() {
                 <p className="text-sm text-muted-foreground">Set system output to Multi-Output Device. In RingCentral, set Microphone to "BlackHole 2ch" and Speaker to your headphones.</p>
               </div>
               <div>
-                <h4 className="font-medium text-sm">Step 4: Configure VoicePro</h4>
+                <h4 className="font-medium text-sm">Step 4: Configure VoxFilter</h4>
                 <p className="text-sm text-muted-foreground">Select your physical microphone, start audio processing, and enable "Output to Virtual Cable".</p>
               </div>
             </div>
@@ -528,7 +528,7 @@ export default function UserGuide() {
               <AccordionItem value="rc-no-audio">
                 <AccordionTrigger className="text-sm" data-testid="accordion-rc-no-audio">RingCentral shows no audio input</AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  Make sure you clicked "Enable Output to Virtual Cable" in VoicePro. Verify VoicePro shows "Virtual Cable Output: Active" in green. Check that your OS default output is set to the virtual cable. Restart RingCentral after changing audio settings.
+                  Make sure you clicked "Enable Output to Virtual Cable" in VoxFilter. Verify VoxFilter shows "Virtual Cable Output: Active" in green. Check that your OS default output is set to the virtual cable. Restart RingCentral after changing audio settings.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="no-hear">
@@ -556,7 +556,7 @@ export default function UserGuide() {
           <CardContent className="pt-6">
             <Accordion type="multiple" className="w-full">
               <AccordionItem value="recording">
-                <AccordionTrigger className="text-sm" data-testid="accordion-faq-recording">Does VoicePro record my calls?</AccordionTrigger>
+                <AccordionTrigger className="text-sm" data-testid="accordion-faq-recording">Does VoxFilter record my calls?</AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">Only when you explicitly click the Record button. Recordings download directly to your computer - they are not stored on any server.</AccordionContent>
               </AccordionItem>
               <AccordionItem value="manager">
@@ -565,7 +565,7 @@ export default function UserGuide() {
               </AccordionItem>
               <AccordionItem value="sound-different">
                 <AccordionTrigger className="text-sm" data-testid="accordion-faq-sound">Will I sound like a different person?</AccordionTrigger>
-                <AccordionContent className="text-sm text-muted-foreground">No. VoicePro enhances your natural voice; it doesn't replace it. Think of it as professional audio polish.</AccordionContent>
+                <AccordionContent className="text-sm text-muted-foreground">No. VoxFilter enhances your natural voice; it doesn't replace it. Think of it as professional audio polish.</AccordionContent>
               </AccordionItem>
               <AccordionItem value="detect">
                 <AccordionTrigger className="text-sm" data-testid="accordion-faq-detect">Can customers tell I'm using voice modification?</AccordionTrigger>
@@ -576,7 +576,7 @@ export default function UserGuide() {
                 <AccordionContent className="text-sm text-muted-foreground">"Professional" or "Confident" for most B2B calls. "Friendly" or "Energetic" for B2C outreach.</AccordionContent>
               </AccordionItem>
               <AccordionItem value="why-virtual-cable">
-                <AccordionTrigger className="text-sm" data-testid="accordion-faq-virtual-cable">Why can't VoicePro output directly to RingCentral?</AccordionTrigger>
+                <AccordionTrigger className="text-sm" data-testid="accordion-faq-virtual-cable">Why can't VoxFilter output directly to RingCentral?</AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">Browser security prevents creating virtual audio devices. A virtual audio cable bridges the gap between the browser and desktop apps.</AccordionContent>
               </AccordionItem>
               <AccordionItem value="data-privacy">
@@ -593,7 +593,7 @@ export default function UserGuide() {
       </section>
 
       <Separator />
-      <p className="text-xs text-muted-foreground text-center pb-8">VoicePro v2.0 - Audio Processing for Sales Teams</p>
+      <p className="text-xs text-muted-foreground text-center pb-8">VoxFilter v2.0 - Audio Processing for Sales Teams</p>
     </div>
   );
 }
