@@ -181,7 +181,7 @@ export function handleGetCurrentUser(req: Request, res: Response) {
  */
 function cleanExpiredSessions() {
   const now = Date.now();
-  for (const [sessionId, session] of sessions.entries()) {
+  for (const [sessionId, session] of Array.from(sessions.entries())) {
     if (now > session.expiresAt) {
       sessions.delete(sessionId);
     }
