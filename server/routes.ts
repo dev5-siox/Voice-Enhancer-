@@ -6,11 +6,10 @@ import {
   updateAgentSettingsSchema, 
   insertCustomProfileSchema, 
   insertTeamPresetSchema,
-  createInsertSchema,
-  usageStats,
-  recordings,
   teamPresets
 } from "@shared/schema";
+import { createInsertSchema } from "drizzle-zod";
+import { usageStats, recordings } from "@shared/schema";
 import { z } from "zod";
 import { 
   requireAuth, 
@@ -22,7 +21,6 @@ import {
   handleRegisterUser 
 } from "./auth";
 
-// Create validation schemas for missing endpoints
 const insertUsageStatsSchema = createInsertSchema(usageStats);
 const insertRecordingSchema = createInsertSchema(recordings);
 const updateTeamPresetSchema = insertTeamPresetSchema.partial();

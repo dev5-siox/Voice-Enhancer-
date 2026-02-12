@@ -8,6 +8,11 @@ VoicePro is an audio processing application for sales teams using RingCentral fo
 - **Date**: December 1, 2025
 
 ## Recent Changes
+- **Technical Debt Fixes** (Feb 12, 2026):
+  - Race condition fix: Database transactions with FOR UPDATE row locking in DatabaseStorage, version tracking in MemoryStorage
+  - MemoryStorage persistence: Auto-saves to disk every 5 minutes and on SIGINT/SIGTERM (file: data/memory-storage.json)
+  - Database migration runner: server/migrate.ts for drizzle-orm migrations
+  - Schema versioning: schema_versions table with startup validation, SCHEMA_VERSION constant in shared/schema.ts
 - **FIXED Voice Modification** (Dec 1, 2025): Complete overhaul of audio processing pipeline
   - Added 4 formant filters (F1, F2, F3, voice body) for dramatic voice character changes
   - Voice presets now produce audible differences (deeper, warmer, brighter, etc.)

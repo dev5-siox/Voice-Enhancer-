@@ -1,6 +1,19 @@
 import { z } from "zod";
-import { pgTable, text, boolean, integer, jsonb, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, integer, jsonb, timestamp, uuid, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
+
+export const SCHEMA_VERSION = 1;
+
+export const schemaVersions = pgTable("schema_versions", {
+  id: serial("id").primaryKey(),
+  version: integer("version").notNull(),
+  appliedAt: timestamp("applied_at").defaultNow().notNull(),
+  description: text("description"),
+});
+
+export const insertSchemaVersionSchema = createInsertSchema(schemaVersions).omit({ id: true, appliedAt: true });
+export type InsertSchemaVersion = z.infer<typeof insertSchemaVersionSchema>;
+export type SchemaVersion = typeof schemaVersions.$inferSelect;
 
 // Agent status enum
 export const AgentStatus = {

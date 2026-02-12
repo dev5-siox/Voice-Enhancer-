@@ -13,6 +13,8 @@ import type {
   InsertRecording
 } from "@shared/schema";
 import { defaultAudioSettings } from "@shared/schema";
+import fs from "fs";
+import path from "path";
 
 /**
  * In-memory storage implementation for quick local development
@@ -26,15 +28,94 @@ export class MemoryStorage implements IStorage {
   private recordings: Map<string, Recording> = new Map();
   private idCounter = 0;
 
-  // CRITICAL FIX: Add size limits to prevent unbounded growth
   private readonly MAX_USAGE_STATS = 10000;
   private readonly MAX_RECORDINGS = 1000;
   private readonly USAGE_STATS_TTL_DAYS = 90;
 
+  private readonly PERSISTENCE_FILE = './data/memory-storage.json';
+  private readonly SAVE_INTERVAL_MS = 5 * 60 * 1000;
+
   constructor() {
-    // Run cleanup every hour
+    this.loadFromDisk();
     setInterval(() => this.cleanupOldData(), 60 * 60 * 1000);
-    console.log("MemoryStorage: Initialized with cleanup scheduled");
+    setInterval(() => this.saveToDisk(), this.SAVE_INTERVAL_MS);
+    process.on('SIGINT', () => {
+      this.saveToDisk();
+      process.exit(0);
+    });
+    process.on('SIGTERM', () => {
+      this.saveToDisk();
+      process.exit(0);
+    });
+    console.log("MemoryStorage: Initialized with persistence and cleanup scheduled");
+  }
+
+  private saveToDisk(): void {
+    try {
+      const data = {
+        agents: Array.from(this.agents.entries()),
+        customProfiles: Array.from(this.customProfiles.entries()),
+        teamPresets: Array.from(this.teamPresets.entries()),
+        usageStats: Array.from(this.usageStats.entries()),
+        recordings: Array.from(this.recordings.entries()),
+        idCounter: this.idCounter,
+        version: 1,
+        savedAt: new Date().toISOString(),
+      };
+
+      const dir = path.dirname(this.PERSISTENCE_FILE);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(this.PERSISTENCE_FILE, JSON.stringify(data, null, 2));
+      console.log(`MemoryStorage: Saved ${this.agents.size} agents to disk`);
+    } catch (error) {
+      console.error('MemoryStorage: Failed to save:', error);
+    }
+  }
+
+  private loadFromDisk(): void {
+    try {
+      if (!fs.existsSync(this.PERSISTENCE_FILE)) {
+        console.log('MemoryStorage: No existing data file, starting fresh');
+        return;
+      }
+      const fileContent = fs.readFileSync(this.PERSISTENCE_FILE, 'utf-8');
+      const data = JSON.parse(fileContent);
+
+      if (data.agents) {
+        this.agents = new Map(data.agents.map(([id, agent]: [string, any]) => [
+          id, { ...agent, createdAt: new Date(agent.createdAt), updatedAt: new Date(agent.updatedAt) }
+        ]));
+      }
+      if (data.customProfiles) {
+        this.customProfiles = new Map(data.customProfiles.map(([id, p]: [string, any]) => [
+          id, { ...p, createdAt: new Date(p.createdAt) }
+        ]));
+      }
+      if (data.teamPresets) {
+        this.teamPresets = new Map(data.teamPresets.map(([id, p]: [string, any]) => [
+          id, { ...p, createdAt: new Date(p.createdAt), updatedAt: new Date(p.updatedAt) }
+        ]));
+      }
+      if (data.usageStats) {
+        this.usageStats = new Map(data.usageStats.map(([id, s]: [string, any]) => [
+          id, { ...s, date: new Date(s.date) }
+        ]));
+      }
+      if (data.recordings) {
+        this.recordings = new Map(data.recordings.map(([id, r]: [string, any]) => [
+          id, { ...r, createdAt: new Date(r.createdAt) }
+        ]));
+      }
+      if (data.idCounter) {
+        this.idCounter = data.idCounter;
+      }
+
+      console.log(`MemoryStorage: Loaded ${this.agents.size} agents from disk`);
+    } catch (error) {
+      console.log('MemoryStorage: Could not load data file, starting fresh');
+    }
   }
 
   private generateId(): string {

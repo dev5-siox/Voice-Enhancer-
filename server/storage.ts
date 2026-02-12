@@ -6,7 +6,9 @@ import {
   teamPresets, 
   usageStats, 
   recordings,
-  defaultAudioSettings 
+  schemaVersions,
+  defaultAudioSettings,
+  SCHEMA_VERSION
 } from "@shared/schema";
 import type { 
   Agent, 
@@ -70,6 +72,34 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async checkSchemaVersion(): Promise<void> {
+    try {
+      const result = await db.select()
+        .from(schemaVersions)
+        .orderBy(desc(schemaVersions.version))
+        .limit(1);
+
+      if (result.length === 0) {
+        await db.insert(schemaVersions).values({
+          version: SCHEMA_VERSION,
+          description: `Initial schema version ${SCHEMA_VERSION}`,
+        });
+        console.log(`Schema version initialized to ${SCHEMA_VERSION}`);
+      } else {
+        const currentDbVersion = result[0].version;
+        if (currentDbVersion !== SCHEMA_VERSION) {
+          console.warn(
+            `Schema version mismatch: database has v${currentDbVersion}, code expects v${SCHEMA_VERSION}. Run migrations.`
+          );
+        } else {
+          console.log(`Schema version ${SCHEMA_VERSION} verified`);
+        }
+      }
+    } catch (error) {
+      console.warn('Schema version check skipped (table may not exist yet):', (error as Error).message);
+    }
+  }
+
   async getAgent(id: string): Promise<Agent | undefined> {
     const result = await db.select().from(agents).where(eq(agents.id, id));
     return result[0];
@@ -91,24 +121,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAgentSettings(id: string, settings: UpdateAgentSettings): Promise<Agent | undefined> {
-    const agent = await this.getAgent(id);
-    if (!agent) return undefined;
+    return await db.transaction(async (tx: any) => {
+      await tx.execute(sql`SELECT 1 FROM agents WHERE id = ${id} FOR UPDATE`);
 
-    const updatedSettings = settings.audioSettings 
-      ? { ...agent.audioSettings, ...settings.audioSettings }
-      : agent.audioSettings;
+      const [agent] = await tx.select().from(agents).where(eq(agents.id, id));
+      if (!agent) return undefined;
 
-    const result = await db.update(agents)
-      .set({
-        status: settings.status ?? agent.status,
-        isProcessingActive: settings.isProcessingActive ?? agent.isProcessingActive,
-        audioSettings: updatedSettings,
-        updatedAt: new Date(),
-      })
-      .where(eq(agents.id, id))
-      .returning();
-    
-    return result[0];
+      const updatedSettings = settings.audioSettings 
+        ? { ...agent.audioSettings, ...settings.audioSettings }
+        : agent.audioSettings;
+
+      const [updated] = await tx.update(agents)
+        .set({
+          status: settings.status ?? agent.status,
+          isProcessingActive: settings.isProcessingActive ?? agent.isProcessingActive,
+          audioSettings: updatedSettings,
+          updatedAt: new Date(),
+        })
+        .where(eq(agents.id, id))
+        .returning();
+      
+      return updated;
+    });
   }
 
   async deleteAgent(id: string): Promise<boolean> {
@@ -332,6 +366,10 @@ export class DatabaseStorage implements IStorage {
 // Use memory storage if no database URL is configured
 import { MemoryStorage } from "./memory-storage";
 
-export const storage = process.env.DATABASE_URL 
-  ? new DatabaseStorage() 
-  : new MemoryStorage();
+const dbStorage = process.env.DATABASE_URL ? new DatabaseStorage() : null;
+if (dbStorage) {
+  dbStorage.checkSchemaVersion().catch(err => 
+    console.warn('Schema version check failed:', err)
+  );
+}
+export const storage: IStorage = dbStorage || new MemoryStorage();
