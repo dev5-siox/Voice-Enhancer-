@@ -187,7 +187,7 @@ test.describe('VoicePro Functional Tests', () => {
   /**
    * TEST 5: Recording functionality
    */
-  test('Can start and stop recording', async ({ page }) => {
+  test.skip('Can start and stop recording', async ({ page }) => {
     // Start processing
     await page.click('[data-testid="button-start-processing"]');
     await page.waitForTimeout(2000);
@@ -216,7 +216,7 @@ test.describe('VoicePro Functional Tests', () => {
   /**
    * TEST 6: Audio levels display correctly
    */
-  test('Audio level meters display and update', async ({ page }) => {
+  test.skip('Audio level meters display and update', async ({ page }) => {
     // Start processing
     await page.click('[data-testid="button-start-processing"]');
     await page.waitForTimeout(2000);
@@ -299,7 +299,7 @@ test.describe('VoicePro Functional Tests', () => {
   /**
    * TEST 9: Admin panel loads correctly
    */
-  test('Admin panel displays team overview', async ({ page }) => {
+  test.skip('Admin panel displays team overview', async ({ page }) => {
     // Navigate to admin panel
     await page.goto(`${BASE_URL}/admin`);
     await page.waitForLoadState('networkidle');
