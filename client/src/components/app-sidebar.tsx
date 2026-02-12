@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { Mic, Users, Settings, Activity } from "lucide-react";
+import { Mic, Users, Settings, Activity, BookOpen } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +25,12 @@ const menuItems = [
     url: "/admin",
     icon: Users,
     description: "View all agents",
+  },
+  {
+    title: "User Guide",
+    url: "/guide",
+    icon: BookOpen,
+    description: "Help & documentation",
   },
 ];
 
@@ -57,7 +63,7 @@ export function AppSidebar() {
                     isActive={location === item.url}
                     tooltip={item.description}
                   >
-                    <Link href={item.url} data-testid={`link-${item.url === "/" ? "dashboard" : "admin"}`}>
+                    <Link href={item.url} data-testid={`link-${item.url === "/" ? "dashboard" : item.url.slice(1)}`}>
                       <item.icon className="w-4 h-4" />
                       <span>{item.title}</span>
                     </Link>

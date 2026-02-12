@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import AgentDashboard from "@/pages/agent-dashboard";
 import AdminPanel from "@/pages/admin-panel";
+import UserGuide from "@/pages/user-guide";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -15,6 +16,7 @@ function Router() {
     <Switch>
       <Route path="/" component={AgentDashboard} />
       <Route path="/admin" component={AdminPanel} />
+      <Route path="/guide" component={UserGuide} />
       <Route component={NotFound} />
     </Switch>
   );
