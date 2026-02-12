@@ -34,31 +34,53 @@ test.describe('VoicePro Functional Tests', () => {
     // Wait for app to load
     await page.waitForLoadState('networkidle');
     
-    // Handle welcome/setup dialog if present
+    // Handle welcome/setup dialog - try multiple strategies
     try {
-      const welcomeDialog = page.locator('[role="dialog"]').first();
-      const isVisible = await welcomeDialog.isVisible({ timeout: 2000 }).catch(() => false);
+      // Strategy 1: Wait a bit for any animations
+      await page.waitForTimeout(1000);
       
-      if (isVisible) {
-        // Fill in name
+      // Strategy 2: Check if dialog exists
+      const welcomeDialog = page.locator('[role="dialog"]').first();
+      const isDialogVisible = await welcomeDialog.isVisible().catch(() => false);
+      
+      if (isDialogVisible) {
+        console.log('Setup dialog detected, attempting to dismiss');
+        
+        // Strategy 3: Fill the form
         const nameInput = page.getByTestId('input-agent-name');
-        await nameInput.waitFor({ state: 'visible', timeout: 3000 });
-        await nameInput.clear();
-        await nameInput.fill('Test Agent CI');
-        await page.waitForTimeout(500);
+        if (await nameInput.isVisible().catch(() => false)) {
+          await nameInput.fill('Test Agent CI');
+          await page.waitForTimeout(500);
+        }
         
-        // Click register button using force to bypass pointer-events blocking
+        // Strategy 4: Try clicking with JavaScript execution (bypasses all pointer-events)
         const registerButton = page.getByTestId('button-register');
-        await registerButton.waitFor({ state: 'visible', timeout: 3000 });
-        await registerButton.click({ force: true });
-        
-        // Wait for dialog to close completely
-        await welcomeDialog.waitFor({ state: 'hidden', timeout: 5000 });
+        if (await registerButton.isVisible().catch(() => false)) {
+          // Use evaluate to click via JavaScript
+          await registerButton.evaluate(button => (button as HTMLElement).click());
+          console.log('Clicked register button via JavaScript');
+          
+          // Wait for dialog to close
+          await page.waitForTimeout(2000);
+          await welcomeDialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
+            console.log('Dialog did not close, trying to close manually');
+          });
+        }
+      }
+      
+      // Strategy 5: If dialog still exists, press Escape
+      if (await welcomeDialog.isVisible().catch(() => false)) {
+        await page.keyboard.press('Escape');
         await page.waitForTimeout(1000);
       }
+      
+      console.log('Setup complete, proceeding with test');
     } catch (error) {
-      console.log('No welcome dialog or already dismissed');
+      console.log('Dialog handling error:', error);
     }
+    
+    // Final wait to ensure everything is settled
+    await page.waitForTimeout(1000);
   });
 
   /**
@@ -139,7 +161,7 @@ test.describe('VoicePro Functional Tests', () => {
     await page.waitForTimeout(2000);
     
     // Find voice modifier switch
-    const vmSwitch = page.getByTestId('switch-voice-modifier');
+    const vmSwitch = page.getByTestId('switch-accent-modifier');
     
     if (await vmSwitch.isVisible()) {
       // Enable voice modification
@@ -147,7 +169,7 @@ test.describe('VoicePro Functional Tests', () => {
       await page.waitForTimeout(500);
       
       // Select preset
-      const presetSelect = page.getByTestId('select-voice-preset');
+      const presetSelect = page.getByTestId('select-accent-preset');
       if (await presetSelect.isVisible()) {
         await presetSelect.click();
         await page.waitForTimeout(300);
