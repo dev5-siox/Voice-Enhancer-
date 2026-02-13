@@ -6,7 +6,8 @@ import {
   updateAgentSettingsSchema, 
   insertCustomProfileSchema, 
   insertTeamPresetSchema,
-  teamPresets
+  teamPresets,
+  audioSettingsSchema
 } from "@shared/schema";
 import { createInsertSchema } from "drizzle-zod";
 import { usageStats, recordings } from "@shared/schema";
@@ -22,7 +23,7 @@ import {
 } from "./auth";
 
 const insertUsageStatsSchema = createInsertSchema(usageStats);
-const insertRecordingSchema = createInsertSchema(recordings);
+const insertRecordingSchema = createInsertSchema(recordings, { audioSettings: audioSettingsSchema });
 const updateTeamPresetSchema = insertTeamPresetSchema.partial();
 
 export async function registerRoutes(

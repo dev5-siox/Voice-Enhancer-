@@ -88,7 +88,7 @@ export const agents = pgTable("agents", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   email: text("email"),
-  status: text("status").notNull().default("offline"),
+  status: text("status").$type<AgentStatusType>().notNull().default("offline"),
   isProcessingActive: boolean("is_processing_active").notNull().default(false),
   callDuration: integer("call_duration").notNull().default(0),
   latency: integer("latency").notNull().default(0),
@@ -150,6 +150,7 @@ export type InsertAgent = typeof agents.$inferInsert;
 // Insert schemas using drizzle-zod
 export const insertAgentSchema = createInsertSchema(agents, {
   audioSettings: audioSettingsSchema,
+  status: z.enum(["online", "away", "busy", "offline"]),
 }).omit({
   id: true,
   createdAt: true,

@@ -195,10 +195,14 @@ export class MemoryStorage implements IStorage {
     const agent: Agent = {
       id: this.generateId(),
       name: insertAgent.name,
-      email: insertAgent.email,
-      status: insertAgent.status || "offline",
-      isProcessingActive: insertAgent.isProcessingActive || false,
-      audioSettings: insertAgent.audioSettings || defaultAudioSettings,
+      email: insertAgent.email ?? null,
+      status: insertAgent.status ?? "offline",
+      isProcessingActive: insertAgent.isProcessingActive ?? false,
+      callDuration: 0,
+      latency: 0,
+      audioSettings: insertAgent.audioSettings ?? defaultAudioSettings,
+      totalCallsToday: 0,
+      totalProcessingTime: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -256,6 +260,7 @@ export class MemoryStorage implements IStorage {
       ...profile,
       id: this.generateId(),
       createdAt: new Date(),
+      isShared: profile.isShared ?? false,
     };
     this.customProfiles.set(newProfile.id, newProfile);
     return newProfile;
@@ -282,6 +287,8 @@ export class MemoryStorage implements IStorage {
       id: this.generateId(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      description: preset.description ?? null,
+      isActive: preset.isActive ?? true,
     };
     this.teamPresets.set(newPreset.id, newPreset);
     return newPreset;
@@ -291,10 +298,16 @@ export class MemoryStorage implements IStorage {
     const existing = this.teamPresets.get(id);
     if (!existing) return undefined;
 
+    // Avoid spreading undefined into required fields under `strict` typing.
     const updated: TeamPreset = {
       ...existing,
-      ...preset,
+      name: preset.name ?? existing.name,
+      description: preset.description ?? existing.description ?? null,
+      isActive: preset.isActive ?? existing.isActive,
+      audioSettings: preset.audioSettings ?? existing.audioSettings,
       updatedAt: new Date(),
+      createdAt: existing.createdAt,
+      id: existing.id,
     };
     this.teamPresets.set(id, updated);
     return updated;
@@ -327,6 +340,12 @@ export class MemoryStorage implements IStorage {
     const newStats: UsageStats = {
       ...stats,
       id: this.generateId(),
+      date: stats.date ?? new Date(),
+      noiseReductionMinutes: stats.noiseReductionMinutes ?? 0,
+      accentModifierMinutes: stats.accentModifierMinutes ?? 0,
+      totalCalls: stats.totalCalls ?? 0,
+      avgLatency: stats.avgLatency ?? 0,
+      accentPresetUsed: stats.accentPresetUsed ?? null,
     };
     this.usageStats.set(newStats.id, newStats);
     return newStats;
@@ -379,6 +398,8 @@ export class MemoryStorage implements IStorage {
       ...recording,
       id: this.generateId(),
       createdAt: new Date(),
+      duration: recording.duration ?? 0,
+      fileSize: recording.fileSize ?? 0,
     };
     this.recordings.set(newRecording.id, newRecording);
     return newRecording;

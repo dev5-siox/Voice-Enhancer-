@@ -17,6 +17,7 @@ import { WaveformVisualizer } from "./waveform-visualizer";
 import { AudioLevelMeter } from "./audio-level-meter";
 import type { AudioSettings, AccentPresetType } from "@shared/schema";
 import { accentPresetConfigs } from "@shared/schema";
+import type { OutputRouteStatus, SelfTestReport } from "@/hooks/use-audio-processor";
 
 interface AudioDevice {
   deviceId: string;
@@ -32,6 +33,13 @@ interface AudioControlsProps {
   isRecording?: boolean;
   recordingDuration?: number;
   isOutputEnabled?: boolean;
+  isMonitorEnabled?: boolean;
+  isVirtualOutputEnabled?: boolean;
+  setSinkIdSupported?: boolean | null;
+  monitorStatus?: OutputRouteStatus;
+  virtualStatus?: OutputRouteStatus;
+  monitorError?: string | null;
+  virtualError?: string | null;
   outputDeviceId?: string | null;
   inputLevel: number;
   outputLevel: number;
@@ -45,6 +53,10 @@ interface AudioControlsProps {
   onStartRecording?: () => void;
   onStopRecording?: () => Promise<Blob>;
   onDownloadRecording?: () => Promise<Blob | null>;
+  onRunSelfTest?: (opts?: { outputDeviceId?: string | null }) => Promise<SelfTestReport>;
+  selfTestReport?: SelfTestReport | null;
+  selfTestRecordingUrl?: string | null;
+  isSelfTesting?: boolean;
   getAnalyserData: () => Uint8Array | null;
   error: string | null;
 }
@@ -71,6 +83,13 @@ export function AudioControls({
   isRecording = false,
   recordingDuration = 0,
   isOutputEnabled = false,
+  isMonitorEnabled = false,
+  isVirtualOutputEnabled = false,
+  setSinkIdSupported = null,
+  monitorStatus = "inactive",
+  virtualStatus = "inactive",
+  monitorError = null,
+  virtualError = null,
   outputDeviceId,
   inputLevel,
   outputLevel,
@@ -84,11 +103,41 @@ export function AudioControls({
   onStartRecording,
   onStopRecording,
   onDownloadRecording,
+  onRunSelfTest,
+  selfTestReport,
+  selfTestRecordingUrl,
+  isSelfTesting = false,
   getAnalyserData,
   error,
 }: AudioControlsProps) {
   const inputDevices = devices.filter((d) => d.kind === "audioinput");
   const outputDevices = devices.filter((d) => d.kind === "audiooutput");
+  const processingActive = isInitialized && isProcessing;
+  const pitchShiftSupported = false; // Browser build currently does not apply live pitch shifting.
+
+  const isVirtualCableLabel = (label: string) => {
+    const l = label.toLowerCase();
+    return (
+      l.includes("cable") ||
+      l.includes("vb-audio") ||
+      l.includes("blackhole") ||
+      l.includes("black hole")
+    );
+  };
+
+  const selectedOutputLabel =
+    outputDeviceId ? outputDevices.find((d) => d.deviceId === outputDeviceId)?.label : undefined;
+  const selectedLooksVirtual = selectedOutputLabel ? isVirtualCableLabel(selectedOutputLabel) : false;
+  const ringCentralReady = Boolean(isVirtualOutputEnabled && selectedLooksVirtual);
+  const anyOutputEnabled = Boolean(isMonitorEnabled || isVirtualOutputEnabled);
+
+  const badgeForStatus = (status: OutputRouteStatus) => {
+    if (status === "active") return { text: "Active", className: "bg-green-500/10 text-green-600 dark:text-green-400" };
+    if (status === "blocked") return { text: "Blocked", className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" };
+    if (status === "failed") return { text: "Failed", className: "bg-destructive/10 text-destructive" };
+    if (status === "unsupported") return { text: "Unsupported", className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" };
+    return { text: "Inactive", className: "bg-muted text-muted-foreground" };
+  };
 
   return (
     <div className="space-y-4">
@@ -104,6 +153,15 @@ export function AudioControls({
           {error && (
             <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
               {error}
+            </div>
+          )}
+
+          {!processingActive && (
+            <div className="p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm">
+              <p className="font-medium">Audio processing is OFF</p>
+              <p className="text-xs mt-1 opacity-80">
+                Start audio processing to hear any noise reduction / voice changes. When processing is off, RingCentral will hear your unprocessed mic (or nothing).
+              </p>
             </div>
           )}
 
@@ -179,6 +237,7 @@ export function AudioControls({
             <Switch
               checked={settings.noiseReductionEnabled}
               onCheckedChange={(checked) => onSettingsChange({ noiseReductionEnabled: checked })}
+              disabled={!processingActive}
               data-testid="switch-noise-reduction"
             />
           </div>
@@ -196,7 +255,7 @@ export function AudioControls({
                 max={100}
                 min={0}
                 step={5}
-                disabled={!settings.noiseReductionEnabled}
+                disabled={!processingActive || !settings.noiseReductionEnabled}
                 data-testid="slider-noise-reduction"
               />
             </div>
@@ -215,6 +274,7 @@ export function AudioControls({
             <Switch
               checked={settings.accentModifierEnabled}
               onCheckedChange={(checked) => onSettingsChange({ accentModifierEnabled: checked })}
+              disabled={!processingActive}
               data-testid="switch-accent-modifier"
             />
           </div>
@@ -233,7 +293,7 @@ export function AudioControls({
                     formantShift: config.formantShift,
                   });
                 }}
-                disabled={!settings.accentModifierEnabled}
+                disabled={!processingActive || !settings.accentModifierEnabled}
               >
                 <SelectTrigger data-testid="select-accent-preset">
                   <SelectValue placeholder="Select preset" />
@@ -272,9 +332,14 @@ export function AudioControls({
                 max={12}
                 min={-12}
                 step={1}
-                disabled={!settings.accentModifierEnabled}
+                disabled={!pitchShiftSupported || !processingActive || !settings.accentModifierEnabled}
                 data-testid="slider-pitch-shift"
               />
+              {!pitchShiftSupported && (
+                <p className="text-xs text-muted-foreground">
+                  Pitch shift is not applied in the web version yet. Use <span className="font-medium">Formant Shift</span> for audible changes.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -290,11 +355,14 @@ export function AudioControls({
                 max={50}
                 min={-50}
                 step={5}
-                disabled={!settings.accentModifierEnabled}
+                disabled={!processingActive || !settings.accentModifierEnabled}
                 data-testid="slider-formant-shift"
               />
               <p className="text-xs text-muted-foreground">
                 Positive: brighter voice. Negative: warmer voice.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Note: This is <span className="font-medium">tone/formant shaping</span>, not phoneme-level “accent conversion”.
               </p>
             </div>
           </div>
@@ -421,45 +489,71 @@ export function AudioControls({
 
       {/* Virtual Cable Output - CRITICAL FOR RINGCENTRAL */}
       {isInitialized && onEnableOutput && onDisableOutput && (
-        <Card className={isOutputEnabled ? "border-green-500/50" : "border-amber-500/50"}>
+        <Card className={anyOutputEnabled ? "border-green-500/50" : "border-amber-500/50"}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Cable className="w-4 h-4" />
                 Audio Output Routing
-                {isOutputEnabled ? (
-                  <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-400">Active</Badge>
-                ) : (
-                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">Required</Badge>
-                )}
+                <Badge variant="secondary" className={badgeForStatus(virtualStatus).className}>
+                  {badgeForStatus(virtualStatus).text}
+                </Badge>
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {isOutputEnabled && (
+              {ringCentralReady && (
                 <div className="flex items-start gap-2 p-3 rounded-md bg-green-500/10 text-green-700 dark:text-green-300 text-sm">
                   <Cable className="w-4 h-4 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-medium">Processed audio is now active</p>
+                    <p className="font-medium">RingCentral routing ready</p>
                     <p className="text-xs mt-1 opacity-80">
-                      VoxFilter is outputting your modified voice. Select "CABLE Input (VB-Audio)" below to route to RingCentral.
+                      VoxFilter is outputting processed audio to a virtual cable output device. Set RingCentral mic to the matching virtual mic input (CABLE Output / BlackHole).
                     </p>
                   </div>
                 </div>
               )}
 
-              {!isOutputEnabled && (
+              {!ringCentralReady && (
                 <div className="flex items-start gap-2 p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm">
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-medium">Output not enabled</p>
+                    <p className="font-medium">RingCentral routing not ready</p>
                     <p className="text-xs mt-1 opacity-80">
-                      Click the button below to start outputting processed audio.
+                      Select a virtual cable output device (VB-Audio CABLE Input / BlackHole), then click Enable. If your browser blocks playback you will see “Blocked”.
                     </p>
                   </div>
                 </div>
               )}
+
+              {(virtualError || monitorError) && (
+                <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm space-y-1">
+                  {virtualError && <div><span className="font-medium">Virtual:</span> {virtualError}</div>}
+                  {monitorError && <div><span className="font-medium">Monitor:</span> {monitorError}</div>}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="secondary" className={badgeForStatus(monitorStatus).className}>
+                  Monitor: {badgeForStatus(monitorStatus).text}
+                </Badge>
+                <Badge variant="secondary" className={badgeForStatus(virtualStatus).className}>
+                  Virtual: {badgeForStatus(virtualStatus).text}
+                </Badge>
+                <Badge
+                  variant="secondary"
+                  className={setSinkIdSupported ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}
+                >
+                  setSinkId: {setSinkIdSupported ? "Supported" : setSinkIdSupported === false ? "Unsupported" : "Unknown"}
+                </Badge>
+                <Badge
+                  variant="secondary"
+                  className={ringCentralReady ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}
+                >
+                  RingCentral ready: {ringCentralReady ? "YES" : "NO"}
+                </Badge>
+              </div>
 
               {outputDevices.length > 0 && onSetOutputDevice && (
                 <div className="space-y-2">
@@ -467,9 +561,7 @@ export function AudioControls({
                   <Select
                     value={outputDeviceId || "default"}
                     onValueChange={async (value) => {
-                      if (value !== "default") {
-                        await onSetOutputDevice(value);
-                      }
+                      await onSetOutputDevice(value);
                     }}
                   >
                     <SelectTrigger data-testid="select-output-device">
@@ -502,12 +594,12 @@ export function AudioControls({
               )}
 
               <Button
-                onClick={() => isOutputEnabled ? onDisableOutput() : onEnableOutput()}
-                variant={isOutputEnabled ? "outline" : "default"}
+                onClick={() => anyOutputEnabled ? onDisableOutput() : onEnableOutput(outputDeviceId || undefined)}
+                variant={anyOutputEnabled ? "outline" : "default"}
                 className="w-full"
                 data-testid="button-toggle-output"
               >
-                {isOutputEnabled ? (
+                {anyOutputEnabled ? (
                   <>
                     <Cable className="w-4 h-4 mr-2" />
                     Disable Audio Output
@@ -515,10 +607,124 @@ export function AudioControls({
                 ) : (
                   <>
                     <Cable className="w-4 h-4 mr-2" />
-                    Enable Audio Output
+                    {outputDeviceId && outputDeviceId !== "default" ? "Enable Audio Output" : "Enable Monitor (hear processed audio)"}
                   </>
                 )}
               </Button>
+
+              {onRunSelfTest && (
+                <div className="pt-2 space-y-2">
+                  <Button
+                    onClick={() => onRunSelfTest({ outputDeviceId })}
+                    variant="secondary"
+                    className="w-full"
+                    disabled={isSelfTesting}
+                    data-testid="button-self-test"
+                  >
+                    {isSelfTesting ? "Running Self-Test..." : "Test Processed Audio (3s)"}
+                  </Button>
+
+                  {selfTestReport && (
+                    <div className="p-3 rounded-md border bg-card text-xs space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">Self-Test</span>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            selfTestReport.overallStatus === "ok"
+                              ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                              : selfTestReport.overallStatus === "warn"
+                                ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                : "bg-destructive/10 text-destructive"
+                          }
+                        >
+                          {(selfTestReport.overallStatus || "fail").toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        {(selfTestReport.steps || []).map((s) => (
+                          <div key={s.id} className="flex items-start justify-between gap-3">
+                            <span className="text-muted-foreground">{s.name}</span>
+                            <span className="font-mono">
+                              {(s.status || "skip").toUpperCase()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="text-muted-foreground space-y-0.5">
+                        {selfTestReport.details?.audioContextState && (
+                          <div>
+                            AudioContext: {selfTestReport.details.audioContextState} @ {selfTestReport.details.sampleRate || "?"}Hz
+                          </div>
+                        )}
+                        {(selfTestReport.details?.rawTracks !== undefined || selfTestReport.details?.processedTracks !== undefined) && (
+                          <div>
+                            Tracks: raw={selfTestReport.details?.rawTracks ?? "?"}, processed={selfTestReport.details?.processedTracks ?? "?"}
+                          </div>
+                        )}
+                        {selfTestReport.details?.setSinkIdSupported !== undefined && (
+                          <div>
+                            setSinkIdSupported: {selfTestReport.details.setSinkIdSupported ? "true" : "false"}
+                          </div>
+                        )}
+                        {selfTestReport.details?.selectedOutputDeviceLabel && (
+                          <div>
+                            Selected output: {selfTestReport.details.selectedOutputDeviceLabel}
+                          </div>
+                        )}
+                        {(selfTestReport.details?.outputDevices?.length ?? 0) > 0 && (
+                          <div>
+                            Outputs detected: {selfTestReport.details?.outputDevices?.length}
+                          </div>
+                        )}
+                        {(selfTestReport.details?.outputDevices?.length ?? 0) > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {(selfTestReport.details?.outputDevices || []).slice(0, 8).map((d) => (
+                              <div key={d.deviceId} className="flex items-center justify-between gap-2">
+                                <span className="truncate">{d.label}</span>
+                                {d.isVirtual && (
+                                  <span className="font-mono text-[10px] px-1 py-0.5 rounded bg-green-500/10 text-green-700 dark:text-green-300">
+                                    virtual
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                            {(selfTestReport.details?.outputDevices?.length || 0) > 8 && (
+                              <div className="text-[10px] text-muted-foreground">
+                                (showing first 8)
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {selfTestRecordingUrl && (
+                        <div className="pt-2 flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              const a = new Audio(selfTestRecordingUrl);
+                              await a.play();
+                            }}
+                          >
+                            Play last self-test
+                          </Button>
+                          <a
+                            className="text-xs underline text-muted-foreground self-center"
+                            href={selfTestRecordingUrl}
+                            download="voxfilter-selftest.webm"
+                          >
+                            Download
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Setup instructions */}
               <div className="mt-4 p-3 rounded-md bg-muted/50 text-xs space-y-2">

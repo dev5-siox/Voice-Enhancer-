@@ -378,7 +378,7 @@ export default function AgentDashboard() {
                     <li>Select the virtual device as your mic in RingCentral</li>
                   </ol>
                   <p className="text-xs mt-2 text-muted-foreground">
-                    Browser limitations prevent direct device routing.
+                    Output routing requires Chrome/Edge support for setSinkId (https/localhost). RingCentral must be set to the virtual cable as its microphone.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -440,6 +440,13 @@ export default function AgentDashboard() {
           isRecording={audioProcessor.isRecording}
           recordingDuration={audioProcessor.recordingDuration}
           isOutputEnabled={audioProcessor.isOutputEnabled}
+          isMonitorEnabled={audioProcessor.isMonitorEnabled}
+          isVirtualOutputEnabled={audioProcessor.isVirtualOutputEnabled}
+          setSinkIdSupported={audioProcessor.setSinkIdSupported}
+          monitorStatus={audioProcessor.monitorStatus}
+          virtualStatus={audioProcessor.virtualStatus}
+          monitorError={audioProcessor.monitorError}
+          virtualError={audioProcessor.virtualError}
           outputDeviceId={audioProcessor.outputDeviceId}
           inputLevel={audioProcessor.inputLevel}
           outputLevel={audioProcessor.outputLevel}
@@ -450,6 +457,10 @@ export default function AgentDashboard() {
           onEnableOutput={audioProcessor.enableOutput}
           onDisableOutput={audioProcessor.disableOutput}
           onSetOutputDevice={audioProcessor.setOutputDevice}
+          onRunSelfTest={audioProcessor.runSelfTest}
+          selfTestReport={audioProcessor.selfTestReport}
+          selfTestRecordingUrl={audioProcessor.selfTestRecordingUrl}
+          isSelfTesting={audioProcessor.isSelfTesting}
           onStartRecording={audioProcessor.startRecording}
           onStopRecording={audioProcessor.stopRecording}
           onDownloadRecording={audioProcessor.downloadRecording}

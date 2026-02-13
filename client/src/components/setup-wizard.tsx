@@ -45,14 +45,15 @@ const windowsSteps: SetupStep[] = [
     externalLink: { url: "https://vb-audio.com/Cable/", label: "Download VB-Audio" }
   },
   {
-    id: "windows-output",
-    title: "Set Windows Output to Virtual Cable",
-    description: "Configure Windows to send audio through the virtual cable",
+    id: "voxfilter-route",
+    title: "Route VoxFilter output to the virtual cable",
+    description: "Use VoxFilter's Output Routing (no OS default changes required)",
     details: [
-      "Right-click speaker icon in taskbar → 'Sound settings'",
-      "Under 'Output', select 'CABLE Input (VB-Audio Virtual Cable)'",
-      "This routes VoxFilter's processed audio through the cable",
-      "Note: You won't hear other audio until you plug in headphones or revert this setting after calls"
+      "In VoxFilter, click 'Start Audio Processing'",
+      "Scroll to 'Audio Output Routing'",
+      "Select 'CABLE Input (VB-Audio Virtual Cable)' as the output device",
+      "Click 'Enable Audio Output' (this must succeed; watch for Blocked/Failed)",
+      "Optional: Click 'Test Processed Audio (3s)' to prove the processed stream is live"
     ]
   },
   {
@@ -73,8 +74,9 @@ const windowsSteps: SetupStep[] = [
     details: [
       "In VoxFilter, select your physical microphone (headset, USB mic, etc.)",
       "Click 'Start Audio Processing'",
-      "Scroll down and click 'Enable Output to Virtual Cable' button (CRITICAL!)",
-      "The Virtual Cable Output card should show 'Active' in green"
+      "Select 'CABLE Input' in the Output Routing dropdown",
+      "Click 'Enable Audio Output'",
+      "Confirm 'RingCentral ready: YES' appears"
     ]
   },
   {
@@ -84,7 +86,7 @@ const windowsSteps: SetupStep[] = [
     details: [
       "In RingCentral Settings → Audio, click 'Test' for microphone",
       "Speak into your mic - you should see audio activity in RingCentral",
-      "If no audio, make sure 'Enable Output to Virtual Cable' is clicked in VoxFilter"
+      "If no audio, re-check VoxFilter Output Routing status (Virtual: Active, RingCentral ready: YES)"
     ]
   }
 ];
@@ -103,25 +105,15 @@ const macSteps: SetupStep[] = [
     externalLink: { url: "https://existential.audio/blackhole/", label: "Download BlackHole (free)" }
   },
   {
-    id: "multi-output",
-    title: "Create Multi-Output Device",
-    description: "Create a device that sends audio to both headphones and BlackHole",
+    id: "voxfilter-route",
+    title: "Route VoxFilter output to BlackHole",
+    description: "Use VoxFilter's Output Routing (no OS default changes required)",
     details: [
-      "Open 'Audio MIDI Setup' (search in Spotlight)",
-      "Click '+' button at bottom left → 'Create Multi-Output Device'",
-      "Check BOTH 'BlackHole 2ch' AND your headphones/speakers",
-      "This lets you hear audio while also routing to BlackHole"
-    ]
-  },
-  {
-    id: "mac-output",
-    title: "Set Mac Output to Multi-Output Device",
-    description: "Configure macOS to use the multi-output device",
-    details: [
-      "Go to System Preferences → Sound → Output",
-      "Select the 'Multi-Output Device' you just created",
-      "VoxFilter output now goes to both your headphones AND BlackHole",
-      "Note: Volume control may be limited with multi-output devices"
+      "In VoxFilter, click 'Start Audio Processing'",
+      "Scroll to 'Audio Output Routing'",
+      "Select 'BlackHole 2ch' as the output device",
+      "Click 'Enable Audio Output' (must succeed; watch for Blocked/Failed)",
+      "Optional: Click 'Test Processed Audio (3s)' to prove the processed stream is live"
     ]
   },
   {
@@ -142,8 +134,9 @@ const macSteps: SetupStep[] = [
     details: [
       "In VoxFilter, select your physical microphone",
       "Click 'Start Audio Processing'",
-      "Scroll down and click 'Enable Output to Virtual Cable' button (CRITICAL!)",
-      "The Virtual Cable Output card should show 'Active' in green"
+      "Select 'BlackHole' in the Output Routing dropdown",
+      "Click 'Enable Audio Output'",
+      "Confirm 'RingCentral ready: YES' appears"
     ]
   }
 ];

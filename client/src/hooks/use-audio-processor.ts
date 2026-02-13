@@ -8,11 +8,54 @@ interface AudioDevice {
   kind: MediaDeviceKind;
 }
 
+export type OutputRouteStatus =
+  | "inactive"
+  | "active"
+  | "blocked"
+  | "failed"
+  | "unsupported";
+
+export type SelfTestStepStatus = "ok" | "warn" | "fail" | "skip";
+
+export interface SelfTestStep {
+  id: string;
+  name: string;
+  status: SelfTestStepStatus;
+  message?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface SelfTestReport {
+  createdAt: string;
+  overallStatus: SelfTestStepStatus;
+  steps: SelfTestStep[];
+  details?: {
+    audioContextState?: string;
+    sampleRate?: number;
+    rawTracks?: number;
+    processedTracks?: number;
+    streamActive?: boolean;
+    processedStreamActive?: boolean;
+    setSinkIdSupported?: boolean;
+    selectedOutputDeviceId?: string | null;
+    selectedOutputDeviceLabel?: string | null;
+    outputDevices?: Array<{ deviceId: string; label: string; isVirtual: boolean }>;
+    levels?: { inputLevel: number; outputLevel: number };
+  };
+}
+
 interface AudioProcessorState {
   isInitialized: boolean;
   isProcessing: boolean;
   isRecording: boolean;
   isOutputEnabled: boolean;
+  isMonitorEnabled: boolean;
+  isVirtualOutputEnabled: boolean;
+  setSinkIdSupported: boolean | null;
+  monitorStatus: OutputRouteStatus;
+  virtualStatus: OutputRouteStatus;
+  monitorError: string | null;
+  virtualError: string | null;
   inputLevel: number;
   outputLevel: number;
   latency: number;
@@ -20,6 +63,9 @@ interface AudioProcessorState {
   processedStreamId: string | null;
   recordingDuration: number;
   outputDeviceId: string | null;
+  selfTestReport: SelfTestReport | null;
+  selfTestRecordingUrl: string | null;
+  isSelfTesting: boolean;
 }
 
 export function useAudioProcessor(settings: AudioSettings) {
@@ -28,6 +74,13 @@ export function useAudioProcessor(settings: AudioSettings) {
     isProcessing: false,
     isRecording: false,
     isOutputEnabled: false,
+    isMonitorEnabled: false,
+    isVirtualOutputEnabled: false,
+    setSinkIdSupported: null,
+    monitorStatus: "inactive",
+    virtualStatus: "inactive",
+    monitorError: null,
+    virtualError: null,
     inputLevel: 0,
     outputLevel: 0,
     latency: 0,
@@ -35,6 +88,9 @@ export function useAudioProcessor(settings: AudioSettings) {
     processedStreamId: null,
     recordingDuration: 0,
     outputDeviceId: null,
+    selfTestReport: null,
+    selfTestRecordingUrl: null,
+    isSelfTesting: false,
   });
 
   const [devices, setDevices] = useState<AudioDevice[]>([]);
@@ -72,6 +128,7 @@ export function useAudioProcessor(settings: AudioSettings) {
   const recordedChunksRef = useRef<Blob[]>([]);
   const recordingStartTimeRef = useRef<number>(0);
   const recordingIntervalRef = useRef<number | null>(null);
+  const selfTestRecordingUrlRef = useRef<string | null>(null);
 
   // Keep settings ref updated
   useEffect(() => {
@@ -91,12 +148,168 @@ export function useAudioProcessor(settings: AudioSettings) {
       }));
       setDevices(audioDevices);
     } catch (err) {
-      console.error("Failed to enumerate devices:", err);
+      console.error("VoxFilter: enumerateDevices failed:", err);
       setState((prev) => ({ 
         ...prev, 
         error: "Could not access audio devices. Please check permissions." 
       }));
     }
+  }, []);
+
+  // Stop audio processing (hard cleanup; safe to call after partial init failures)
+  const stop = useCallback((errorOverride?: string | null) => {
+    // Stop recording if active
+    if (mediaRecorderRef.current) {
+      try {
+        mediaRecorderRef.current.ondataavailable = null;
+        mediaRecorderRef.current.onstop = null;
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current = null;
+      } catch (error) {
+        console.error("VoxFilter: Error stopping media recorder:", error);
+      }
+    }
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = 0;
+    }
+
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+
+    // Stop audio outputs (both monitor and virtual cable)
+    if (monitorOutputRef.current) {
+      monitorOutputRef.current.pause();
+      monitorOutputRef.current.srcObject = null;
+      monitorOutputRef.current = null;
+    }
+    if (audioOutputRef.current) {
+      audioOutputRef.current.pause();
+      audioOutputRef.current.srcObject = null;
+      audioOutputRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    if (processedStreamRef.current) {
+      processedStreamRef.current.getTracks().forEach((track) => track.stop());
+      processedStreamRef.current = null;
+    }
+
+    // Disconnect all audio nodes before closing context
+    try {
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.disconnect();
+        sourceNodeRef.current = null;
+      }
+      if (gainNodeRef.current) {
+        gainNodeRef.current.disconnect();
+        gainNodeRef.current = null;
+      }
+      if (highPassRef.current) {
+        highPassRef.current.disconnect();
+        highPassRef.current = null;
+      }
+      if (lowPassRef.current) {
+        lowPassRef.current.disconnect();
+        lowPassRef.current = null;
+      }
+      if (notchFilterRef.current) {
+        notchFilterRef.current.disconnect();
+        notchFilterRef.current = null;
+      }
+      if (noiseGateRef.current) {
+        noiseGateRef.current.disconnect();
+        noiseGateRef.current = null;
+      }
+      if (formantFilter1Ref.current) {
+        formantFilter1Ref.current.disconnect();
+        formantFilter1Ref.current = null;
+      }
+      if (formantFilter2Ref.current) {
+        formantFilter2Ref.current.disconnect();
+        formantFilter2Ref.current = null;
+      }
+      if (formantFilter3Ref.current) {
+        formantFilter3Ref.current.disconnect();
+        formantFilter3Ref.current = null;
+      }
+      if (voiceBodyFilterRef.current) {
+        voiceBodyFilterRef.current.disconnect();
+        voiceBodyFilterRef.current = null;
+      }
+      if (clarityFilterRef.current) {
+        clarityFilterRef.current.disconnect();
+        clarityFilterRef.current = null;
+      }
+      if (normalizerRef.current) {
+        normalizerRef.current.disconnect();
+        normalizerRef.current = null;
+      }
+      if (outputGainNodeRef.current) {
+        outputGainNodeRef.current.disconnect();
+        outputGainNodeRef.current = null;
+      }
+      if (analyserNodeRef.current) {
+        analyserNodeRef.current.disconnect();
+        analyserNodeRef.current = null;
+      }
+      if (destinationRef.current) {
+        destinationRef.current.disconnect();
+        destinationRef.current = null;
+      }
+    } catch (error) {
+      console.error("VoxFilter: Error disconnecting audio nodes:", error);
+    }
+
+    // Close the audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch((error) => {
+        console.error("VoxFilter: Error closing audio context:", error);
+      });
+      audioContextRef.current = null;
+    }
+
+    // Revoke any self-test recording URL to avoid leaks
+    if (selfTestRecordingUrlRef.current) {
+      try {
+        URL.revokeObjectURL(selfTestRecordingUrlRef.current);
+      } catch {
+        // ignore
+      }
+      selfTestRecordingUrlRef.current = null;
+    }
+
+    console.log("VoxFilter: stop()", { error: errorOverride ?? null });
+
+    setState((prev) => ({
+      ...prev,
+      isInitialized: false,
+      isProcessing: false,
+      isRecording: false,
+      isOutputEnabled: false,
+      error: errorOverride ?? null,
+      isMonitorEnabled: false,
+      isVirtualOutputEnabled: false,
+      monitorStatus: "inactive",
+      virtualStatus: "inactive",
+      monitorError: null,
+      virtualError: null,
+      outputDeviceId: null,
+      inputLevel: 0,
+      outputLevel: 0,
+      processedStreamId: null,
+      recordingDuration: 0,
+      selfTestReport: null,
+      selfTestRecordingUrl: null,
+      isSelfTesting: false,
+    }));
   }, []);
 
   // Initialize audio context and get user media
@@ -288,111 +501,58 @@ export function useAudioProcessor(settings: AudioSettings) {
 
       // Calculate latency
       const latency = (audioContext.baseLatency || 0) * 1000 + (audioContext.outputLatency || 0) * 1000;
-      
+
+      const rawTracks = stream.getAudioTracks().length;
+      const processedTracks = destination.stream.getAudioTracks().length;
+
+      // Prepare output elements (no auto-play; user gesture required)
+      if (!monitorOutputRef.current) monitorOutputRef.current = new Audio();
+      monitorOutputRef.current.srcObject = destination.stream;
+      monitorOutputRef.current.volume = 0.5;
+
+      if (!audioOutputRef.current) audioOutputRef.current = new Audio();
+      audioOutputRef.current.srcObject = destination.stream;
+
+      const setSinkIdSupported = typeof (audioOutputRef.current as any)?.setSinkId === "function";
+
       setState((prev) => ({
         ...prev,
         isInitialized: true,
         isProcessing: true,
         latency: Math.max(10, Math.round(latency)),
         processedStreamId: destination.stream.id,
+        // Output routing is explicit. We never claim it's active until a user gesture successfully plays.
+        isOutputEnabled: false,
+        isMonitorEnabled: false,
+        isVirtualOutputEnabled: false,
+        setSinkIdSupported,
+        monitorStatus: "inactive",
+        virtualStatus: setSinkIdSupported ? "inactive" : "unsupported",
+        monitorError: null,
+        virtualError: null,
+        outputDeviceId: null,
+        selfTestRecordingUrl: null,
       }));
 
       await refreshDevices();
-      
-      console.log("VoxFilter: Audio processing initialized. Processed stream ID:", destination.stream.id);
-      
-      // AUTO-ENABLE OUTPUT: Route processed audio to BOTH virtual cable AND speakers
-      // This ensures the user can HEAR their processed voice AND RingCentral receives it
-      try {
-        const deviceList = await navigator.mediaDevices.enumerateDevices();
-        const outputDevices = deviceList.filter(d => d.kind === 'audiooutput');
-        
-        // Find virtual cable (VB-Audio / BlackHole) for RingCentral
-        const virtualCable = outputDevices.find(d => 
-          d.label.toLowerCase().includes('cable input') || 
-          d.label.toLowerCase().includes('vb-audio') ||
-          d.label.toLowerCase().includes('blackhole')
-        );
-        
-        // Find default output / speakers for user to hear themselves
-        const defaultOutput = outputDevices.find(d => 
-          d.deviceId === 'default' || 
-          d.label.toLowerCase().includes('speakers') ||
-          d.label.toLowerCase().includes('headphone')
-        ) || outputDevices[0];
-        
-        // 1. MONITOR OUTPUT - OPTIONAL route to speakers so user can hear processed voice
-        // DON'T auto-enable - let user explicitly enable it
-        if (!monitorOutputRef.current) {
-          monitorOutputRef.current = new Audio();
-          // Don't set autoplay - browser will block it anyway
-        }
-        
-        // Set up the stream but don't play yet
-        monitorOutputRef.current.srcObject = destination.stream;
-        monitorOutputRef.current.volume = 0.5; // 50% volume to prevent feedback
-        
-        // Try to set monitor to speakers/headphones (not virtual cable)
-        if (defaultOutput && 'setSinkId' in monitorOutputRef.current) {
-          try {
-            // Find a real speaker device (not virtual cable)
-            const realSpeaker = outputDevices.find(d => 
-              !d.label.toLowerCase().includes('cable') && 
-              !d.label.toLowerCase().includes('vb-audio') &&
-              !d.label.toLowerCase().includes('blackhole') &&
-              (d.label.toLowerCase().includes('speaker') || 
-               d.label.toLowerCase().includes('headphone') ||
-               d.deviceId === 'default')
-            );
-            if (realSpeaker) {
-              await (monitorOutputRef.current as any).setSinkId(realSpeaker.deviceId);
-              console.log("VoxFilter: MONITOR output set to:", realSpeaker.label);
-            }
-          } catch (sinkErr) {
-            console.log("VoxFilter: Using default output for monitor");
-          }
-        }
-        
-        // TRY to auto-play, but don't fail if browser blocks it
-        try {
-          await monitorOutputRef.current.play();
-          console.log("VoxFilter: MONITOR AUTO-ENABLED - You can hear your processed voice!");
-          setState((prev) => ({ ...prev, isOutputEnabled: true }));
-        } catch (playErr) {
-          console.log("VoxFilter: Auto-play blocked. User must click 'Enable Audio Output' button.");
-          // User will need to click the "Enable Audio Output" button
-        }
-        
-        // 2. VIRTUAL CABLE OUTPUT - Route to VB-Audio/BlackHole for RingCentral
-        if (!audioOutputRef.current) {
-          audioOutputRef.current = new Audio();
-          audioOutputRef.current.autoplay = true;
-        }
-        audioOutputRef.current.srcObject = destination.stream;
-        
-        if (virtualCable && 'setSinkId' in audioOutputRef.current) {
-          try {
-            await (audioOutputRef.current as any).setSinkId(virtualCable.deviceId);
-            console.log("VoxFilter: Virtual cable output set to:", virtualCable.label);
-            setState(prev => ({ ...prev, outputDeviceId: virtualCable.deviceId }));
-          } catch (sinkErr) {
-            console.warn("VoxFilter: Could not set virtual cable output:", sinkErr);
-          }
-        }
-        
-        await audioOutputRef.current.play();
-        setState(prev => ({ ...prev, isOutputEnabled: true }));
-        console.log("VoxFilter: DUAL OUTPUT ENABLED - Monitor (speakers) + Virtual Cable (RingCentral)");
-      } catch (outputErr) {
-        console.warn("VoxFilter: Could not auto-enable output:", outputErr);
-      }
+
+      console.log("VoxFilter: initialize() success", {
+        audioContextState: audioContext.state,
+        sampleRate: audioContext.sampleRate,
+        rawTracks,
+        processedTracks,
+        processedStreamId: destination.stream.id,
+        setSinkIdSupported,
+      });
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to initialize audio";
-      setState((prev) => ({ ...prev, error: errorMessage }));
-      console.error("Audio initialization error:", err);
+      console.error("VoxFilter: initialize() failed:", err);
+      // IMPORTANT: Cleanup ALWAYS so users can retry without refresh.
+      stop(errorMessage);
+      throw err instanceof Error ? err : new Error(errorMessage);
     }
-  }, [refreshDevices]);
+  }, [refreshDevices, stop]);
 
   // Apply noise reduction settings
   const applyNoiseReductionSettings = useCallback((s: AudioSettings) => {
@@ -420,6 +580,17 @@ export function useAudioProcessor(settings: AudioSettings) {
         noiseGateRef.current.ratio.value = 1;
         notchFilterRef.current.Q.value = 0.01;
       }
+
+      // Minimal, structured log (one per setting change).
+      console.log("VoxFilter: noiseReduction applied", {
+        enabled: s.noiseReductionEnabled,
+        level: s.noiseReductionLevel,
+        hpHz: Math.round(highPassRef.current.frequency.value),
+        lpHz: Math.round(lowPassRef.current.frequency.value),
+        gateThresholdDb: Number(noiseGateRef.current.threshold.value.toFixed(2)),
+        gateRatio: Number(noiseGateRef.current.ratio.value.toFixed(2)),
+        notchQ: Number(notchFilterRef.current.Q.value.toFixed(2)),
+      });
     }
   }, []);
 
@@ -433,7 +604,7 @@ export function useAudioProcessor(settings: AudioSettings) {
     const lp = lowPassRef.current;
     
     if (!f1 || !f2 || !f3 || !vb) {
-      console.log("VoxFilter: Formant filters not ready yet - start audio processing first!");
+      console.warn("VoxFilter: applyAccentSettings skipped (nodes not ready)");
       return;
     }
     
@@ -441,9 +612,6 @@ export function useAudioProcessor(settings: AudioSettings) {
       const preset = accentPresetConfigs[s.accentPreset as AccentPresetType] || accentPresetConfigs.neutral;
       const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
       const pitchShift = s.pitchShift !== undefined ? s.pitchShift : preset.pitchShift;
-      
-      console.log(`%cVoxFilter: APPLYING VOICE MOD`, 'color: green; font-weight: bold');
-      console.log(`  Preset: ${s.accentPreset}, FormantShift: ${formantShift}, PitchShift: ${pitchShift}`);
       
       // EXTREME formant shifting - these values will be VERY noticeable
       // formantShift ranges from -50 to +50
@@ -530,12 +698,19 @@ export function useAudioProcessor(settings: AudioSettings) {
         vb.frequency.value = 250;
         vb.gain.value = 0;
       }
-      
-      console.log(`%cVoxFilter: FILTERS ACTIVE`, 'color: blue; font-weight: bold');
-      console.log(`  F1: ${f1.type} @ ${f1.frequency.value}Hz, gain: ${f1.gain.value.toFixed(1)}dB`);
-      console.log(`  F2: ${f2.type} @ ${f2.frequency.value}Hz, gain: ${f2.gain.value.toFixed(1)}dB`);
-      console.log(`  F3: ${f3.type} @ ${f3.frequency.value}Hz, gain: ${f3.gain.value.toFixed(1)}dB`);
-      console.log(`  Body: ${vb.type} @ ${vb.frequency.value}Hz, gain: ${vb.gain.value.toFixed(1)}dB`);
+
+      // Minimal, structured log (one per setting change).
+      console.log("VoxFilter: accent applied", {
+        preset: s.accentPreset,
+        formantShift,
+        pitchShift,
+        f1: { type: f1.type, freqHz: Math.round(f1.frequency.value), gainDb: Number(f1.gain.value.toFixed(2)) },
+        f2: { type: f2.type, freqHz: Math.round(f2.frequency.value), gainDb: Number(f2.gain.value.toFixed(2)) },
+        f3: { type: f3.type, freqHz: Math.round(f3.frequency.value), gainDb: Number(f3.gain.value.toFixed(2)) },
+        body: { type: vb.type, freqHz: Math.round(vb.frequency.value), gainDb: Number(vb.gain.value.toFixed(2)) },
+        hpHz: hp ? Math.round(hp.frequency.value) : null,
+        lpHz: lp ? Math.round(lp.frequency.value) : null,
+      });
       
     } else {
       // Disable all voice modification - reset formant filters to flat
@@ -569,7 +744,7 @@ export function useAudioProcessor(settings: AudioSettings) {
       // if (hp) hp.frequency.value = 80;    // ❌ REMOVED
       // if (lp) lp.frequency.value = 8000;  // ❌ REMOVED
       
-      console.log("VoxFilter: Voice modifier DISABLED - flat response");
+      console.log("VoxFilter: accent disabled");
     }
   }, []);
 
@@ -589,141 +764,6 @@ export function useAudioProcessor(settings: AudioSettings) {
         normalizerRef.current.ratio.value = 1; // Bypass
       }
     }
-  }, []);
-
-  // Stop audio processing
-  const stop = useCallback(() => {
-    // Stop recording if active
-    if (mediaRecorderRef.current) {
-      try {
-        mediaRecorderRef.current.ondataavailable = null;
-        mediaRecorderRef.current.onstop = null;
-        mediaRecorderRef.current.stop();
-        mediaRecorderRef.current = null;
-      } catch (error) {
-        console.error("Error stopping media recorder:", error);
-      }
-    }
-
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = 0;
-    }
-
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-      recordingIntervalRef.current = null;
-    }
-
-    // Stop audio outputs (both monitor and virtual cable)
-    if (monitorOutputRef.current) {
-      monitorOutputRef.current.pause();
-      monitorOutputRef.current.srcObject = null;
-      monitorOutputRef.current = null;
-    }
-    if (audioOutputRef.current) {
-      audioOutputRef.current.pause();
-      audioOutputRef.current.srcObject = null;
-      audioOutputRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    if (processedStreamRef.current) {
-      processedStreamRef.current.getTracks().forEach((track) => track.stop());
-      processedStreamRef.current = null;
-    }
-
-    // CRITICAL FIX: Disconnect all audio nodes before closing context
-    // This prevents memory leaks
-    try {
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.disconnect();
-        sourceNodeRef.current = null;
-      }
-      if (gainNodeRef.current) {
-        gainNodeRef.current.disconnect();
-        gainNodeRef.current = null;
-      }
-      if (highPassRef.current) {
-        highPassRef.current.disconnect();
-        highPassRef.current = null;
-      }
-      if (lowPassRef.current) {
-        lowPassRef.current.disconnect();
-        lowPassRef.current = null;
-      }
-      if (notchFilterRef.current) {
-        notchFilterRef.current.disconnect();
-        notchFilterRef.current = null;
-      }
-      if (noiseGateRef.current) {
-        noiseGateRef.current.disconnect();
-        noiseGateRef.current = null;
-      }
-      if (formantFilter1Ref.current) {
-        formantFilter1Ref.current.disconnect();
-        formantFilter1Ref.current = null;
-      }
-      if (formantFilter2Ref.current) {
-        formantFilter2Ref.current.disconnect();
-        formantFilter2Ref.current = null;
-      }
-      if (formantFilter3Ref.current) {
-        formantFilter3Ref.current.disconnect();
-        formantFilter3Ref.current = null;
-      }
-      if (voiceBodyFilterRef.current) {
-        voiceBodyFilterRef.current.disconnect();
-        voiceBodyFilterRef.current = null;
-      }
-      if (clarityFilterRef.current) {
-        clarityFilterRef.current.disconnect();
-        clarityFilterRef.current = null;
-      }
-      if (normalizerRef.current) {
-        normalizerRef.current.disconnect();
-        normalizerRef.current = null;
-      }
-      if (outputGainNodeRef.current) {
-        outputGainNodeRef.current.disconnect();
-        outputGainNodeRef.current = null;
-      }
-      if (analyserNodeRef.current) {
-        analyserNodeRef.current.disconnect();
-        analyserNodeRef.current = null;
-      }
-      if (destinationRef.current) {
-        destinationRef.current.disconnect();
-        destinationRef.current = null;
-      }
-    } catch (error) {
-      console.error("Error disconnecting audio nodes:", error);
-    }
-
-    // NOW close the audio context
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch((error) => {
-        console.error("Error closing audio context:", error);
-      });
-      audioContextRef.current = null;
-    }
-
-    setState((prev) => ({
-      ...prev,
-      isInitialized: false,
-      isProcessing: false,
-      isRecording: false,
-      isOutputEnabled: false,
-      outputDeviceId: null,
-      inputLevel: 0,
-      outputLevel: 0,
-      processedStreamId: null,
-      recordingDuration: 0,
-    }));
   }, []);
 
   // Start recording
@@ -887,7 +927,65 @@ export function useAudioProcessor(settings: AudioSettings) {
   const getProcessedStream = useCallback((): MediaStream | null => {
     return processedStreamRef.current;
   }, []);
-  
+
+  const isVirtualCableLabel = useCallback((label: string) => {
+    const l = label.toLowerCase();
+    return (
+      l.includes("cable input") ||
+      l.includes("vb-audio") ||
+      l.includes("blackhole") ||
+      l.includes("black hole") ||
+      l.includes("loopback") ||
+      l.includes("virtual")
+    );
+  }, []);
+
+  const recordProcessedForMs = useCallback(async (ms: number): Promise<Blob> => {
+    if (!processedStreamRef.current) throw new Error("No processed stream");
+    if (typeof MediaRecorder === "undefined") throw new Error("MediaRecorder not available");
+
+    const preferredTypes = ["audio/webm;codecs=opus", "audio/webm"];
+    const chosenType = preferredTypes.find((t) => MediaRecorder.isTypeSupported?.(t));
+
+    return await new Promise<Blob>((resolve, reject) => {
+      const chunks: Blob[] = [];
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(
+          processedStreamRef.current as MediaStream,
+          chosenType ? { mimeType: chosenType } : undefined
+        );
+      } catch (e) {
+        reject(e);
+        return;
+      }
+
+      const timer = window.setTimeout(() => {
+        try {
+          recorder.stop();
+        } catch {
+          // ignore
+        }
+      }, ms);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) chunks.push(event.data);
+      };
+
+      recorder.onerror = (event) => {
+        window.clearTimeout(timer);
+        reject(event);
+      };
+
+      recorder.onstop = () => {
+        window.clearTimeout(timer);
+        resolve(new Blob(chunks, { type: "audio/webm" }));
+      };
+
+      recorder.start();
+    });
+  }, []);
+
   // Enable audio output to a specific device (for virtual cable routing)
   const enableOutput = useCallback(async (deviceId?: string) => {
     if (!processedStreamRef.current) {
@@ -896,35 +994,93 @@ export function useAudioProcessor(settings: AudioSettings) {
     }
 
     try {
-      // CRITICAL FIX: Play the MONITOR audio (this is what lets you HEAR the processed audio!)
+      // 1) Local monitor (optional): lets the user hear processed audio.
+      let monitorEnabled = false;
+      let monitorStatus: OutputRouteStatus = "inactive";
+      let monitorError: string | null = null;
+
       if (monitorOutputRef.current) {
-        monitorOutputRef.current.volume = 0.5; // 50% volume to prevent feedback
-        await monitorOutputRef.current.play();
-        console.log("VoxFilter: ✅ MONITOR ENABLED - You can now hear your processed voice!");
-      }
-      
-      // Also create virtual cable output if device specified (for RingCentral/Zoom)
-      if (deviceId) {
-        if (!audioOutputRef.current) {
-          audioOutputRef.current = new Audio();
+        try {
+          monitorOutputRef.current.volume = 0.5; // prevent feedback
+          await monitorOutputRef.current.play();
+          monitorEnabled = true;
+          monitorStatus = "active";
+        } catch (e) {
+          const name = (e as any)?.name;
+          monitorStatus = name === "NotAllowedError" ? "blocked" : "failed";
+          monitorError =
+            name === "NotAllowedError"
+              ? "Playback blocked by browser. Click 'Enable Audio Output' again, then allow autoplay if prompted."
+              : "Monitor playback failed. See console for details.";
+          console.warn("VoxFilter: monitor play() failed:", e);
         }
-        audioOutputRef.current.srcObject = processedStreamRef.current;
-        
-        if ('setSinkId' in audioOutputRef.current) {
+      }
+
+      // 2) Virtual cable output (required for RingCentral): must set sink + play.
+      const targetDeviceId = deviceId ?? null;
+      const out = audioOutputRef.current ?? new Audio();
+      audioOutputRef.current = out;
+      out.srcObject = processedStreamRef.current;
+
+      const setSinkIdSupported = typeof (out as any)?.setSinkId === "function";
+      let virtualEnabled = false;
+      let virtualStatus: OutputRouteStatus = setSinkIdSupported ? "inactive" : "unsupported";
+      let virtualError: string | null = null;
+
+      if (!targetDeviceId) {
+        virtualStatus = "failed";
+        virtualError = "Select a virtual cable output device (VB-Audio CABLE Input / BlackHole) first.";
+      } else if (!setSinkIdSupported) {
+        virtualStatus = "unsupported";
+        virtualError = "Your browser does not support output device routing (setSinkId). Use Chrome/Edge on https/localhost.";
+      } else {
+        try {
+          await (out as any).setSinkId(targetDeviceId);
+          console.log("VoxFilter: setSinkId OK", { deviceId: targetDeviceId });
+        } catch (e) {
+          virtualStatus = "failed";
+          virtualError = "Failed to set output device (setSinkId). See console for details.";
+          console.error("VoxFilter: setSinkId failed:", e);
+        }
+
+        if (virtualStatus !== "failed") {
           try {
-            await (audioOutputRef.current as any).setSinkId(deviceId);
-            console.log("VoxFilter: Virtual cable output set to device:", deviceId);
-            setState(prev => ({ ...prev, outputDeviceId: deviceId }));
-          } catch (sinkErr) {
-            console.warn("VoxFilter: Could not set output device, using default:", sinkErr);
+            await out.play();
+            virtualEnabled = true;
+            virtualStatus = "active";
+          } catch (e) {
+            const name = (e as any)?.name;
+            virtualStatus = name === "NotAllowedError" ? "blocked" : "failed";
+            virtualError =
+              name === "NotAllowedError"
+                ? "Playback blocked by browser. Click 'Enable Audio Output' to allow audio output."
+                : "Virtual output playback failed. See console for details.";
+            console.error("VoxFilter: virtual play() failed:", e);
           }
         }
-        await audioOutputRef.current.play();
       }
-      
-      setState(prev => ({ ...prev, isOutputEnabled: true }));
-      console.log("VoxFilter: Audio output enabled - processed audio now playing to system output");
-      return true;
+
+      setState((prev) => ({
+        ...prev,
+        setSinkIdSupported,
+        isMonitorEnabled: monitorEnabled,
+        monitorStatus,
+        monitorError,
+        isVirtualOutputEnabled: virtualEnabled,
+        virtualStatus,
+        virtualError,
+        // Back-compat: this flag now means "virtual cable routing is active"
+        isOutputEnabled: virtualEnabled,
+        outputDeviceId: targetDeviceId,
+      }));
+
+      console.log("VoxFilter: enableOutput() result", {
+        monitor: { enabled: monitorEnabled, status: monitorStatus },
+        virtual: { enabled: virtualEnabled, status: virtualStatus, deviceId: targetDeviceId },
+        setSinkIdSupported,
+      });
+
+      return virtualEnabled;
     } catch (err) {
       console.error("VoxFilter: Failed to enable audio output:", err);
       return false;
@@ -944,25 +1100,339 @@ export function useAudioProcessor(settings: AudioSettings) {
       audioOutputRef.current.srcObject = null;
     }
     
-    setState(prev => ({ ...prev, isOutputEnabled: false, outputDeviceId: null }));
-    console.log("VoxFilter: Audio output disabled");
+    setState((prev) => ({
+      ...prev,
+      isOutputEnabled: false,
+      isMonitorEnabled: false,
+      isVirtualOutputEnabled: false,
+      monitorStatus: "inactive",
+      virtualStatus: prev.setSinkIdSupported ? "inactive" : "unsupported",
+      monitorError: null,
+      virtualError: null,
+      outputDeviceId: null,
+    }));
+    console.log("VoxFilter: disableOutput()");
   }, []);
 
   // Change output device
   const setOutputDevice = useCallback(async (deviceId: string) => {
-    if (audioOutputRef.current && 'setSinkId' in audioOutputRef.current) {
+    if (deviceId === "default") {
+      // Treat "default" as clearing the virtual routing selection.
+      if (audioOutputRef.current) {
+        try {
+          audioOutputRef.current.pause();
+        } catch {
+          // ignore
+        }
+      }
+      setState((prev) => ({
+        ...prev,
+        outputDeviceId: null,
+        isVirtualOutputEnabled: false,
+        isOutputEnabled: false,
+        virtualStatus: prev.setSinkIdSupported ? "inactive" : "unsupported",
+        virtualError: null,
+      }));
+      console.log("VoxFilter: setOutputDevice() cleared (default)");
+      return true;
+    }
+
+    // Always store the selection (even if setSinkId unsupported)
+    setState((prev) => ({ ...prev, outputDeviceId: deviceId }));
+
+    const out = audioOutputRef.current;
+    if (out && typeof (out as any)?.setSinkId === "function") {
       try {
-        await (audioOutputRef.current as any).setSinkId(deviceId);
-        setState(prev => ({ ...prev, outputDeviceId: deviceId }));
-        console.log("VoxFilter: Output device changed to:", deviceId);
+        await (out as any).setSinkId(deviceId);
+        setState((prev) => ({
+          ...prev,
+          setSinkIdSupported: true,
+          virtualStatus: prev.isVirtualOutputEnabled ? "active" : "inactive",
+          virtualError: null,
+        }));
+        console.log("VoxFilter: setOutputDevice() OK", { deviceId });
         return true;
       } catch (err) {
-        console.error("VoxFilter: Failed to change output device:", err);
+        setState((prev) => ({
+          ...prev,
+          setSinkIdSupported: true,
+          virtualStatus: "failed",
+          virtualError: "Failed to set output device (setSinkId). See console for details.",
+        }));
+        console.error("VoxFilter: setOutputDevice() failed:", err);
         return false;
       }
     }
+    setState((prev) => ({
+      ...prev,
+      setSinkIdSupported: out ? typeof (out as any)?.setSinkId === "function" : prev.setSinkIdSupported,
+      virtualStatus: out ? prev.virtualStatus : prev.virtualStatus,
+    }));
     return false;
   }, []);
+
+  const runSelfTest = useCallback(
+    async (opts?: { outputDeviceId?: string | null }) => {
+      const createdAt = new Date().toISOString();
+      // Clear any previous self-test recording URL
+      if (selfTestRecordingUrlRef.current) {
+        try {
+          URL.revokeObjectURL(selfTestRecordingUrlRef.current);
+        } catch {
+          // ignore
+        }
+        selfTestRecordingUrlRef.current = null;
+      }
+
+      setState((prev) => ({
+        ...prev,
+        isSelfTesting: true,
+        selfTestReport: null,
+        selfTestRecordingUrl: null,
+      }));
+
+      const steps: SelfTestStep[] = [];
+      const details: NonNullable<SelfTestReport["details"]> = {
+        audioContextState: audioContextRef.current?.state,
+        sampleRate: audioContextRef.current?.sampleRate,
+        rawTracks: streamRef.current?.getAudioTracks?.().length ?? 0,
+        processedTracks: processedStreamRef.current?.getAudioTracks?.().length ?? 0,
+        streamActive: streamRef.current?.active,
+        processedStreamActive: processedStreamRef.current?.active,
+        setSinkIdSupported: state.setSinkIdSupported ?? undefined,
+        selectedOutputDeviceId: opts?.outputDeviceId ?? state.outputDeviceId,
+        selectedOutputDeviceLabel: null,
+        outputDevices: [],
+        levels: { inputLevel: state.inputLevel, outputLevel: state.outputLevel },
+      };
+
+      const addStep = (step: SelfTestStep) => steps.push(step);
+
+      try {
+        // Step 1: ensure processing
+        if (
+          !audioContextRef.current ||
+          !processedStreamRef.current ||
+          processedStreamRef.current.getAudioTracks().length === 0
+        ) {
+          addStep({
+            id: "start-processing",
+            name: "Start audio processing",
+            status: "warn",
+            message: "Processing was not active; starting it now.",
+          });
+          await initialize();
+        } else {
+          addStep({ id: "start-processing", name: "Start audio processing", status: "ok" });
+        }
+
+        details.audioContextState = audioContextRef.current?.state;
+        details.sampleRate = audioContextRef.current?.sampleRate;
+        details.rawTracks = streamRef.current?.getAudioTracks?.().length ?? 0;
+        details.processedTracks = processedStreamRef.current?.getAudioTracks?.().length ?? 0;
+        details.streamActive = streamRef.current?.active;
+        details.processedStreamActive = processedStreamRef.current?.active;
+
+        // Step 2: tracks exist
+        if ((details.rawTracks ?? 0) <= 0) {
+          addStep({
+            id: "raw-tracks",
+            name: "Raw mic tracks",
+            status: "fail",
+            message: "No raw mic tracks. Check mic permissions/device.",
+          });
+        } else {
+          addStep({
+            id: "raw-tracks",
+            name: "Raw mic tracks",
+            status: "ok",
+            message: `Tracks: ${details.rawTracks}`,
+          });
+        }
+
+        if ((details.processedTracks ?? 0) <= 0) {
+          addStep({
+            id: "processed-tracks",
+            name: "Processed stream tracks",
+            status: "fail",
+            message: "No processed tracks. Audio graph output is not connected.",
+          });
+        } else {
+          addStep({
+            id: "processed-tracks",
+            name: "Processed stream tracks",
+            status: "ok",
+            message: `Tracks: ${details.processedTracks}`,
+          });
+        }
+
+        // Step 3: enumerate devices + virtual cable detection
+        try {
+          const deviceList = await navigator.mediaDevices.enumerateDevices();
+          const outputs = deviceList.filter((d) => d.kind === "audiooutput");
+          details.outputDevices = outputs.map((d) => ({
+            deviceId: d.deviceId,
+            label: d.label || `audiooutput (${d.deviceId.slice(0, 8)})`,
+            isVirtual: d.label ? isVirtualCableLabel(d.label) : false,
+          }));
+
+          const selected = details.selectedOutputDeviceId;
+          if (selected) {
+            const match = outputs.find((d) => d.deviceId === selected);
+            details.selectedOutputDeviceLabel = match?.label || null;
+          }
+
+          addStep({
+            id: "devices",
+            name: "Device list",
+            status: "ok",
+            message: `audiooutput devices: ${outputs.length}`,
+          });
+        } catch (e) {
+          addStep({
+            id: "devices",
+            name: "Device list",
+            status: "warn",
+            message: "Could not enumerate devices. See console.",
+            details: { error: String(e) },
+          });
+          console.warn("VoxFilter: self-test enumerateDevices failed:", e);
+        }
+
+        // Step 4: record 3 seconds from processed stream
+        let blob: Blob | null = null;
+        let recordingUrl: string | null = null;
+        try {
+          blob = await recordProcessedForMs(3000);
+          if (blob.size < 1000) {
+            addStep({
+              id: "record",
+              name: "Record processed stream (3s)",
+              status: "warn",
+              message: `Recording very small (${blob.size} bytes). Speak into mic during test.`,
+            });
+          } else {
+            addStep({
+              id: "record",
+              name: "Record processed stream (3s)",
+              status: "ok",
+              message: `Recorded ${blob.size} bytes`,
+            });
+          }
+
+          recordingUrl = URL.createObjectURL(blob);
+          selfTestRecordingUrlRef.current = recordingUrl;
+        } catch (e) {
+          addStep({
+            id: "record",
+            name: "Record processed stream (3s)",
+            status: "fail",
+            message: "Recording failed. See console.",
+            details: { error: String(e) },
+          });
+          console.error("VoxFilter: self-test record failed:", e);
+        }
+
+        // Step 5: playback the recorded blob locally (user gesture)
+        if (recordingUrl) {
+          try {
+            const a = new Audio(recordingUrl);
+            await a.play();
+            addStep({ id: "playback", name: "Local playback", status: "ok" });
+            // Cleanup
+            a.pause();
+          } catch (e) {
+            const name = (e as any)?.name;
+            addStep({
+              id: "playback",
+              name: "Local playback",
+              status: name === "NotAllowedError" ? "warn" : "fail",
+              message:
+                name === "NotAllowedError"
+                  ? "Playback blocked by browser. Click the test button again."
+                  : "Playback failed. See console.",
+              details: { error: String(e) },
+            });
+            console.error("VoxFilter: self-test playback failed:", e);
+          }
+        } else {
+          addStep({
+            id: "playback",
+            name: "Local playback",
+            status: "skip",
+            message: "Skipped (no recording)",
+          });
+        }
+
+        // Step 6: virtual routing (setSinkId + play)
+        const outId = opts?.outputDeviceId ?? state.outputDeviceId;
+        if (!outId) {
+          addStep({
+            id: "virtual-routing",
+            name: "Virtual cable routing",
+            status: "warn",
+            message: "No output device selected. Select VB-Audio CABLE Input / BlackHole and re-run.",
+          });
+        } else {
+          const ok = await enableOutput(outId);
+          addStep({
+            id: "virtual-routing",
+            name: "Virtual cable routing",
+            status: ok ? "ok" : "fail",
+            message: ok ? "Virtual routing active" : "Virtual routing failed (see Output Routing card / console)",
+            details: { deviceId: outId },
+          });
+        }
+
+        const overallStatus: SelfTestStepStatus = steps.some((s) => s.status === "fail")
+          ? "fail"
+          : steps.some((s) => s.status === "warn")
+            ? "warn"
+            : "ok";
+
+        const report: SelfTestReport = { createdAt, overallStatus, steps, details };
+        setState((prev) => ({
+          ...prev,
+          isSelfTesting: false,
+          selfTestReport: report,
+          selfTestRecordingUrl: selfTestRecordingUrlRef.current,
+        }));
+        console.log("VoxFilter: self-test complete", {
+          overallStatus,
+          steps: steps.map((s) => ({ id: s.id, status: s.status })),
+        });
+        return report;
+      } catch (e) {
+        const report: SelfTestReport = {
+          createdAt,
+          overallStatus: "fail",
+          steps: [
+            ...steps,
+            { id: "unexpected", name: "Unexpected error", status: "fail", message: String(e) },
+          ],
+          details,
+        };
+        setState((prev) => ({
+          ...prev,
+          isSelfTesting: false,
+          selfTestReport: report,
+          selfTestRecordingUrl: null,
+        }));
+        console.error("VoxFilter: self-test unexpected error:", e);
+        return report;
+      }
+    },
+    [
+      enableOutput,
+      initialize,
+      isVirtualCableLabel,
+      recordProcessedForMs,
+      state.inputLevel,
+      state.outputDeviceId,
+      state.outputLevel,
+      state.setSinkIdSupported,
+    ]
+  );
 
   // Get analyser data for visualization
   const getAnalyserData = useCallback(() => {
@@ -984,6 +1454,7 @@ export function useAudioProcessor(settings: AudioSettings) {
     enableOutput,
     disableOutput,
     setOutputDevice,
+    runSelfTest,
     startRecording,
     stopRecording,
     downloadRecording,
