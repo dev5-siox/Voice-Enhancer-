@@ -114,6 +114,8 @@ export function useAudioProcessor(settings: AudioSettings) {
   const voiceBodyFilterRef = useRef<BiquadFilterNode | null>(null);
   const clarityFilterRef = useRef<BiquadFilterNode | null>(null);
   const normalizerRef = useRef<DynamicsCompressorNode | null>(null);
+  const pitchShifterNodeRef = useRef<AudioWorkletNode | null>(null);
+  const pitchShifterLoadedRef = useRef<boolean>(false);
   const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const animationFrameRef = useRef<number>(0);
   const settingsRef = useRef<AudioSettings>(settings);
@@ -251,6 +253,10 @@ export function useAudioProcessor(settings: AudioSettings) {
       if (normalizerRef.current) {
         normalizerRef.current.disconnect();
         normalizerRef.current = null;
+      }
+      if (pitchShifterNodeRef.current) {
+        pitchShifterNodeRef.current.disconnect();
+        pitchShifterNodeRef.current = null;
       }
       if (outputGainNodeRef.current) {
         outputGainNodeRef.current.disconnect();
@@ -500,15 +506,44 @@ export function useAudioProcessor(settings: AudioSettings) {
       destinationRef.current = destination;
       processedStreamRef.current = destination.stream;
 
+      // Load AudioWorklet pitch shifter
+      let pitchShifterNode: AudioWorkletNode | null = null;
+      if (!pitchShifterLoadedRef.current) {
+        try {
+          await audioContext.audioWorklet.addModule('/pitch-shifter-processor.js');
+          pitchShifterLoadedRef.current = true;
+          console.log("VoxFilter: AudioWorklet pitch-shifter loaded");
+        } catch (err) {
+          console.warn("VoxFilter: AudioWorklet pitch-shifter failed to load, pitch shifting disabled:", err);
+        }
+      }
+      
+      if (pitchShifterLoadedRef.current) {
+        try {
+          pitchShifterNode = new AudioWorkletNode(audioContext, 'pitch-shifter-processor');
+          pitchShifterNodeRef.current = pitchShifterNode;
+          console.log("VoxFilter: Pitch shifter node created");
+        } catch (err) {
+          console.warn("VoxFilter: Pitch shifter node creation failed:", err);
+        }
+      }
+
       // Connect the full audio processing chain
       // Source -> Input Gain -> High Pass -> Notch -> Low Pass -> Noise Gate -> 
-      // Voice Body -> F1 -> F2 -> F3 -> Clarity Filter -> Normalizer -> Output Gain -> Analyser -> Destination
+      // Pitch Shifter -> Voice Body -> F1 -> F2 -> F3 -> Clarity Filter -> Normalizer -> Output Gain -> Analyser -> Destination
       source.connect(gainNode);
       gainNode.connect(highPass);
       highPass.connect(notchFilter);
       notchFilter.connect(lowPass);
       lowPass.connect(noiseGate);
-      noiseGate.connect(voiceBodyFilter);
+      
+      if (pitchShifterNode) {
+        noiseGate.connect(pitchShifterNode);
+        pitchShifterNode.connect(voiceBodyFilter);
+      } else {
+        noiseGate.connect(voiceBodyFilter);
+      }
+      
       voiceBodyFilter.connect(formantFilter1);
       formantFilter1.connect(formantFilter2);
       formantFilter2.connect(formantFilter3);
@@ -654,7 +689,14 @@ export function useAudioProcessor(settings: AudioSettings) {
       const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
       const pitchShift = s.pitchShift !== undefined ? s.pitchShift : preset.pitchShift;
       
-      // EXTREME formant shifting - these values will be VERY noticeable
+      // Apply real pitch shifting via AudioWorklet
+      if (pitchShifterNodeRef.current) {
+        const pitchRatio = Math.pow(2, pitchShift / 12);
+        pitchShifterNodeRef.current.port.postMessage({ type: 'setPitchRatio', value: pitchRatio });
+        console.log("VoxFilter: pitch shift applied", { semitones: pitchShift, ratio: pitchRatio.toFixed(4) });
+      }
+      
+      // Formant shifting via EQ filters
       // formantShift ranges from -50 to +50
       
       // For "deeper" voice (negative shift): Boost bass, cut highs, lower formants
@@ -780,10 +822,10 @@ export function useAudioProcessor(settings: AudioSettings) {
         vb.gain.value = 0;
       }
       
-      // DO NOT touch hp and lp here - they belong to noise reduction!
-      // These lines were causing noise reduction to stop working:
-      // if (hp) hp.frequency.value = 80;    // ❌ REMOVED
-      // if (lp) lp.frequency.value = 8000;  // ❌ REMOVED
+      // Reset pitch shifter to normal
+      if (pitchShifterNodeRef.current) {
+        pitchShifterNodeRef.current.port.postMessage({ type: 'setPitchRatio', value: 1.0 });
+      }
       
       console.log("VoxFilter: accent disabled");
     }

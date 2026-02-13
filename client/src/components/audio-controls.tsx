@@ -113,7 +113,7 @@ export function AudioControls({
   const inputDevices = devices.filter((d) => d.kind === "audioinput");
   const outputDevices = devices.filter((d) => d.kind === "audiooutput");
   const processingActive = isInitialized && isProcessing;
-  const pitchShiftSupported = false; // Browser build currently does not apply live pitch shifting.
+  const pitchShiftSupported = true;
 
   const isVirtualCableLabel = (label: string) => {
     const l = label.toLowerCase();
