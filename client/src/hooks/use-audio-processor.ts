@@ -329,10 +329,51 @@ export function useAudioProcessor(settings: AudioSettings) {
 
       setState((prev) => ({ ...prev, error: null }));
       
+      // Smart input device selection: avoid virtual cable devices as input
+      let selectedInputDeviceId = settingsRef.current.inputDeviceId;
+      
+      if (!selectedInputDeviceId) {
+        // No device explicitly selected - try to find the real physical microphone
+        // First, request temporary permission to get device labels
+        try {
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          tempStream.getTracks().forEach(t => t.stop());
+        } catch {
+          // Permission denied will be caught later
+        }
+        
+        const allDevices = await navigator.mediaDevices.enumerateDevices();
+        const inputDevices = allDevices.filter(d => d.kind === "audioinput");
+        
+        // Virtual cable patterns to AVOID as input sources
+        const virtualCablePatterns = [
+          /cable\s*output/i,
+          /vb-audio/i,
+          /virtual\s*cable/i,
+          /blackhole/i,
+          /soundflower/i,
+          /voicemeeter/i,
+        ];
+        
+        const isVirtualDevice = (label: string) => 
+          virtualCablePatterns.some(pattern => pattern.test(label));
+        
+        // Find a real physical microphone (not a virtual cable)
+        const physicalMic = inputDevices.find(d => d.label && !isVirtualDevice(d.label));
+        
+        if (physicalMic) {
+          selectedInputDeviceId = physicalMic.deviceId;
+          console.log("VoxFilter: Auto-selected physical microphone:", physicalMic.label);
+        } else if (inputDevices.length > 0) {
+          // Fallback: just use the first available device
+          console.warn("VoxFilter: No physical microphone detected, using first available input device");
+        }
+      }
+      
       // Request microphone access with noise suppression handled by Web Audio
       const constraints: MediaStreamConstraints = {
         audio: {
-          deviceId: settingsRef.current.inputDeviceId ? { exact: settingsRef.current.inputDeviceId } : undefined,
+          deviceId: selectedInputDeviceId ? { exact: selectedInputDeviceId } : undefined,
           echoCancellation: true,
           noiseSuppression: false, // We handle this ourselves
           autoGainControl: false, // We handle this ourselves

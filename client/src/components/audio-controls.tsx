@@ -475,14 +475,20 @@ export function AudioControls({
                 <SelectValue placeholder="Select microphone" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="default">Default Microphone</SelectItem>
-                {inputDevices.map((device) => (
-                  <SelectItem key={device.deviceId} value={device.deviceId}>
-                    {device.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="default">Auto-detect Physical Microphone</SelectItem>
+                {inputDevices.map((device) => {
+                  const isVirtual = isVirtualCableLabel(device.label);
+                  return (
+                    <SelectItem key={device.deviceId} value={device.deviceId}>
+                      {device.label}{isVirtual ? " (Virtual Cable - avoid)" : ""}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-2">
+              Select your physical microphone here. Virtual cable devices are for output only.
+            </p>
           </CardContent>
         </Card>
       )}
