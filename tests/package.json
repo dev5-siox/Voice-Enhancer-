@@ -21,7 +21,9 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express-rate-limit": "^8.2.1",
+    "fft.js": "^4.0.4",
     "helmet": "^8.1.0",
-    "lodash-es": "^4.17.23"
+    "lodash-es": "^4.17.23",
+    "wav-decoder": "^1.3.0"
   }
 }

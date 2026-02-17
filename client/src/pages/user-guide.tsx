@@ -439,6 +439,29 @@ export default function UserGuide() {
         <SectionHeading icon={Cable} title="Call App Setup (RingCentral / Zoom / Teams / Meet)" id="setup" />
 
         <Card>
+          <CardHeader><CardTitle className="text-base">Step 0 (Recommended): Install VoxFilter Desktop App (.exe)</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              For real calls, the desktop app is the most reliable way to route processed audio into a call app.
+            </p>
+            <ul className="text-sm text-muted-foreground space-y-1.5 list-disc pl-5">
+              <li>Download from GitHub Releases: <strong>VoxFilter-{"<version>"}-Windows.exe</strong></li>
+              <li>Install and launch VoxFilter Desktop App</li>
+              <li>Then follow the Windows/Mac setup steps below</li>
+            </ul>
+            <a
+              href="https://github.com/herrychokshi-ops/VoiceEnhancer/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              data-testid="link-desktop-download"
+            >
+              Download VoxFilter Desktop App (.exe)
+            </a>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader><CardTitle className="text-base">Windows Setup (VB-Audio Virtual Cable)</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">

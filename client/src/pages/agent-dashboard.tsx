@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Headphones, Info, Keyboard, User, Monitor } from "lucide-react";
 import { SetupWizard } from "@/components/setup-wizard";
 import { apiRequest } from "@/lib/queryClient";
+import { Link } from "wouter";
 import type { AudioSettings, AgentStatusType, Agent } from "@shared/schema";
 import { defaultAudioSettings } from "@shared/schema";
 import { debounce } from "lodash-es";
@@ -34,6 +35,8 @@ import {
 
 const AGENT_ID_KEY = "voicepro-agent-id";
 const AGENT_NAME_KEY = "voicepro-agent-name";
+
+const DESKTOP_DOWNLOAD_URL = "https://github.com/herrychokshi-ops/VoiceEnhancer/releases/latest";
 
 export default function AgentDashboard() {
   const { toast } = useToast();
@@ -353,6 +356,35 @@ export default function AgentDashboard() {
             <StatusBadge status={agentStatus} size="md" />
           </div>
         </div>
+
+        {/* Desktop app CTA (when in browser) */}
+        {!isElectron && (
+          <Card className="border-blue-500/30 bg-blue-500/5">
+            <CardContent className="py-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <Monitor className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Recommended for real calls: install VoxFilter Desktop App (.exe)</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The desktop app is more reliable for routing processed audio into call apps (RingCentral/Zoom/Teams/Meet/etc).
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild size="sm" data-testid="button-download-desktop">
+                    <a href={DESKTOP_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+                      Download Desktop App (.exe)
+                    </a>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" data-testid="button-open-setup-guide">
+                    <Link href="/guide#setup">Setup guide</Link>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Call Status Card */}
         <Card>

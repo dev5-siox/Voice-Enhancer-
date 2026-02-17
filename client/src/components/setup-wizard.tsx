@@ -33,6 +33,17 @@ interface SetupStep {
 
 const windowsSteps: SetupStep[] = [
   {
+    id: "desktop-app",
+    title: "Install VoxFilter Desktop App (recommended)",
+    description: "Download and install the Windows .exe for reliable call-app routing",
+    details: [
+      "Download from GitHub Releases (VoxFilter-<version>-Windows.exe)",
+      "Install and launch VoxFilter Desktop App",
+      "Then continue with VB-Audio setup below"
+    ],
+    externalLink: { url: "https://github.com/herrychokshi-ops/VoiceEnhancer/releases/latest", label: "Download VoxFilter Desktop (.exe)" }
+  },
+  {
     id: "install",
     title: "Install VB-Audio Virtual Cable",
     description: "Download and install the free virtual audio cable software",
@@ -92,6 +103,16 @@ const windowsSteps: SetupStep[] = [
 ];
 
 const macSteps: SetupStep[] = [
+  {
+    id: "desktop-app",
+    title: "Desktop app (Windows) is recommended for calls",
+    description: "On macOS, use the web app + BlackHole (desktop installer distribution not set up yet)",
+    details: [
+      "If you're on macOS today: continue with BlackHole setup below",
+      "If you're on Windows: prefer the VoxFilter Desktop App (.exe) from GitHub Releases"
+    ],
+    externalLink: { url: "https://github.com/herrychokshi-ops/VoiceEnhancer/releases/latest", label: "Open GitHub Releases" }
+  },
   {
     id: "install",
     title: "Install BlackHole Virtual Audio Driver",
