@@ -450,7 +450,7 @@ export default function UserGuide() {
               <li>Then follow the Windows/Mac setup steps below</li>
             </ul>
             <a
-              href="https://github.com/herrychokshi-ops/VoiceEnhancer/releases/latest"
+              href="https://github.com/herrychokshi-ops/VoxFilter-Downloads/releases/latest"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline"

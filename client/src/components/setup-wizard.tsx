@@ -41,7 +41,7 @@ const windowsSteps: SetupStep[] = [
       "Install and launch VoxFilter Desktop App",
       "Then continue with VB-Audio setup below"
     ],
-    externalLink: { url: "https://github.com/herrychokshi-ops/VoiceEnhancer/releases/latest", label: "Download VoxFilter Desktop (.exe)" }
+    externalLink: { url: "https://github.com/herrychokshi-ops/VoxFilter-Downloads/releases/latest", label: "Download VoxFilter Desktop (.exe)" }
   },
   {
     id: "install",
@@ -111,7 +111,7 @@ const macSteps: SetupStep[] = [
       "If you're on macOS today: continue with BlackHole setup below",
       "If you're on Windows: prefer the VoxFilter Desktop App (.exe) from GitHub Releases"
     ],
-    externalLink: { url: "https://github.com/herrychokshi-ops/VoiceEnhancer/releases/latest", label: "Open GitHub Releases" }
+    externalLink: { url: "https://github.com/herrychokshi-ops/VoxFilter-Downloads/releases/latest", label: "Open GitHub Releases" }
   },
   {
     id: "install",

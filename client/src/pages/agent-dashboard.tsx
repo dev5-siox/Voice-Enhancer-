@@ -36,7 +36,7 @@ import {
 const AGENT_ID_KEY = "voicepro-agent-id";
 const AGENT_NAME_KEY = "voicepro-agent-name";
 
-const DESKTOP_DOWNLOAD_URL = "https://github.com/herrychokshi-ops/VoiceEnhancer/releases/latest";
+const DESKTOP_DOWNLOAD_URL = "https://github.com/herrychokshi-ops/VoxFilter-Downloads/releases/latest";
 
 export default function AgentDashboard() {
   const { toast } = useToast();
