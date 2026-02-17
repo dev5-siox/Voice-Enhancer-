@@ -1,5 +1,16 @@
 # 🎧 How to Use VoiceEnhancer - Simple Guide
 
+## 🖥️ Desktop App (Windows) — Recommended for real calls
+
+The **desktop app** avoids common browser limitations (autoplay blocking / device routing quirks) and is the recommended way to feed processed audio into **any** call app (RingCentral / Zoom / Teams / Meet / Discord / OBS).
+
+### Download + install
+
+- Download the installer: `VoicePro-<version>-Windows.exe` from your project's **GitHub Release** (recommended), or from **GitHub Actions → Desktop App (Windows Installer)** artifact.
+- Run the installer and launch **VoicePro**.
+
+See `ELECTRON_README.md` for the exact download workflow and tag-based releases.
+
 ## ✅ You DON'T Need Virtual Cable for Testing!
 
 Virtual cable (VB-Audio) is ONLY needed if you want to use the processed audio in apps like **RingCentral** or **Zoom**. For just testing the audio effects, you can skip it!
@@ -19,7 +30,7 @@ Open http://localhost:5000
 - Click "Get Started"
 
 ### Step 3: Start Processing
-1. Click **"Start Processing"** button
+1. Click **"Start Audio Processing"** button
 2. Allow microphone access when browser asks
 3. You'll see audio levels moving
 
@@ -27,6 +38,7 @@ Open http://localhost:5000
 1. Look for the **"Audio Output Routing"** card
 2. Click **"Enable Audio Output"** button
 3. **NOW YOU CAN HEAR YOUR PROCESSED VOICE!** 🎉
+4. Optional: Click **"Test Processed Audio (3s)"** then **"Play last self-test"** to prove the processed stream is live
 
 ### Step 5: Test the Effects
 Try these settings and **you'll hear the difference**:
@@ -96,9 +108,9 @@ Your Mic → Processing → Your Speakers/Headphones
 ```
 **YOU hear the processed audio** ✅
 
-### WITH Virtual Cable (For RingCentral/Zoom)
+### WITH Virtual Cable (For RingCentral/Zoom/Teams/Meet/etc)
 ```
-Your Mic → Processing → Virtual Cable → RingCentral/Zoom
+Your Mic → Processing → Virtual Cable → Call App (RingCentral/Zoom/Teams/Meet/etc)
                      ↓
               Your Headphones (monitor)
 ```
@@ -183,7 +195,7 @@ Your Mic → Processing → Virtual Cable → RingCentral/Zoom
 
 ---
 
-## 🎧 Using with RingCentral/Zoom (Advanced)
+## 🎧 Using with a Call App (RingCentral/Zoom/Teams/Meet) — Advanced
 
 ### Step 1: Install Virtual Cable
 **Windows**: Download VB-Audio Cable from https://vb-audio.com/Cable/
@@ -192,17 +204,22 @@ Your Mic → Processing → Virtual Cable → RingCentral/Zoom
 ### Step 2: In VoiceEnhancer App
 1. Start Processing
 2. Click "Enable Audio Output"
-3. Select your virtual cable from device dropdown (if it appears)
+3. In **Audio Output Routing**, select your virtual cable output device:
+   - Windows: **CABLE Input (VB-Audio Virtual Cable)**
+   - Mac: **BlackHole 2ch**
+4. Confirm the UI shows:
+   - **Virtual: Active**
+   - **RingCentral ready: YES** (this just means “virtual cable output is active”)
 
-### Step 3: In RingCentral/Zoom
+### Step 3: In your Call App (RingCentral/Zoom/Teams/Meet)
 1. Open Settings → Audio
-2. Set **Microphone** to: "Cable Output" or "BlackHole"
+2. Set **Microphone** to: **CABLE Output** (VB-Audio) or **BlackHole 2ch**
 3. Set **Speakers** to: Your real speakers/headphones
 
 ### Step 4: Monitor Yourself
 - VoiceEnhancer automatically routes audio to your speakers
 - You'll hear your processed voice
-- RingCentral/Zoom will receive the same processed audio
+- Your call app will receive the same processed audio
 
 ---
 
@@ -222,9 +239,9 @@ Your Mic → Processing → Virtual Cable → RingCentral/Zoom
 
 ### In console (F12):
 ```
-VoxFilter: Audio processing initialized
-VoxFilter: MONITOR output set to: [Your Speaker Name]
-VoxFilter: ✅ MONITOR ENABLED - You can now hear your processed voice!
+VoxFilter: initialize() success { ... }
+VoxFilter: enableOutput() result { ... }
+VoxFilter: self-test complete { ... }
 ```
 
 ---

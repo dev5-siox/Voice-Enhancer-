@@ -15,3 +15,7 @@ tests/.tmp/
 
 # Local dev storage
 data/memory-storage.json
+
+# Electron build outputs
+release/
+electron/dist/

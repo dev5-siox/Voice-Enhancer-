@@ -52,6 +52,27 @@ This creates:
 - **Windows**: `release/VoicePro-{version}-Windows.exe` (NSIS installer)
 - **Mac**: `release/VoicePro-{version}-Mac-{arch}.dmg` (Disk image)
 
+## Downloading installers (recommended)
+
+Do **not** commit `.exe`/`.dmg` binaries into git. Instead, distribute via:
+
+- **GitHub Actions artifacts** (manual builds), or
+- **GitHub Releases** (tagged builds).
+
+### GitHub Actions (artifact download)
+
+1. Go to the Actions tab → run **Desktop App (Windows Installer)** (workflow_dispatch).
+2. Download the artifact **VoicePro-Windows-Installer**.
+
+### GitHub Releases (public download link)
+
+Push a tag like `desktop-v1.0.0` and GitHub Actions will build and attach:
+
+- `VoicePro-1.0.0-Windows.exe`
+- `VoicePro-1.0.0-Windows.exe.blockmap`
+
+to a Release. Users can download from the Release page.
+
 ## How It Works
 
 ### Audio Flow (Desktop App)

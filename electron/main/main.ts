@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { AudioDeviceManager } from '../audio/device-manager.js';
+import * as fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +16,10 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const SERVER_PORT = 5000;
 
 function createWindow(): void {
+  // Icon is optional; this repo may not ship icon assets in dev.
+  const iconPath = path.join(__dirname, '../../assets/icon.png');
+  const icon = fs.existsSync(iconPath) ? iconPath : undefined;
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -26,7 +31,7 @@ function createWindow(): void {
       nodeIntegration: false,
       webSecurity: true,
     },
-    icon: path.join(__dirname, '../../assets/icon.png'),
+    icon,
     title: 'VoicePro - Audio Processing for Sales Teams',
     backgroundColor: '#0a0a0a',
     show: false,

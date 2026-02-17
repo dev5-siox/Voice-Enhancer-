@@ -373,9 +373,11 @@ Pie chart showing:
 - Stable internet connection for real-time sync
 - WebSocket support for live updates
 
-## RingCentral Desktop App Integration
+## Desktop Call App Integration (RingCentral / Zoom / Teams / Meet)
 
-VoicePro processes audio in your browser but cannot directly route audio to the RingCentral desktop app due to browser security limitations. Web browsers cannot create virtual audio devices that appear in the system device list. To use processed audio with RingCentral Desktop, you need virtual audio cable software that creates a bridge between the browser and the desktop app.
+VoicePro processes audio in your browser but cannot directly create a system microphone device that other desktop apps can see. To use processed audio inside a desktop call app (RingCentral/Zoom/Teams/Meet/etc), you need a **virtual audio cable** (VB-Audio / BlackHole) that acts as a bridge.
+
+**Recommended**: use the **VoicePro Desktop App** (Windows installer) for more reliable routing than the browser. Download instructions live in `ELECTRON_README.md`.
 
 ### Step-by-Step Setup (Windows with VB-Audio)
 
@@ -387,10 +389,13 @@ This is the recommended setup for Windows users with the RingCentral desktop app
 3. Restart your computer after installation
 4. You'll now have a new audio device called "CABLE Input" and "CABLE Output"
 
-**Step 2: Configure Windows Audio**
-1. Right-click the speaker icon in your taskbar → **Sound settings**
-2. Under **Output**, select **"CABLE Input (VB-Audio Virtual Cable)"** as your default output
-3. This routes all system audio (including VoicePro) through the virtual cable
+**Step 2: Configure VoicePro Output Routing** (recommended; no OS default changes)
+1. Open VoicePro
+2. Click **Start Audio Processing**
+3. Scroll to **Audio Output Routing**
+4. Select **"CABLE Input (VB-Audio Virtual Cable)"** as the output device
+5. Click **Enable Audio Output**
+6. Confirm **Virtual: Active** (and “RingCentral ready: YES”)
 
 **Step 3: Configure RingCentral Desktop App**
 1. Open the RingCentral desktop application
@@ -398,13 +403,10 @@ This is the recommended setup for Windows users with the RingCentral desktop app
 3. Under **Microphone**, select **"CABLE Output (VB-Audio Virtual Cable)"**
 4. Keep your headphones or speakers selected as the **Speaker** output so you can hear callers
 
-**Step 4: Configure VoicePro**
-1. Open VoicePro in Chrome browser
-2. Select your physical microphone as the input device
-3. Click **Start Audio Processing**
-4. **IMPORTANT: Scroll down and click "Enable Output to Virtual Cable" button**
-5. The Virtual Cable Output card should show "Active" in green
-6. Speak - you should see the waveform respond
+**Step 4: Validate the processed stream**
+1. Click **Test Processed Audio (3s)** in the Output Routing card
+2. Confirm the Self-Test shows **OK/WARN** (and shows device list)
+3. If playback is blocked, click **Play last self-test**
 
 **Step 5: Test the Complete Flow**
 1. In RingCentral, go to Settings → Audio → Test your microphone
@@ -432,17 +434,13 @@ RingCentral Desktop App - uses as microphone input
 3. Allow the extension in System Preferences → Security & Privacy if prompted
 4. You'll now have a new audio device called "BlackHole 2ch"
 
-**Step 2: Create a Multi-Output Device** (Required on Mac)
-1. Open **Audio MIDI Setup** (search in Spotlight)
-2. Click the **+** button at bottom left → **Create Multi-Output Device**
-3. Check BOTH **BlackHole 2ch** AND your headphones/speakers
-4. This device sends audio to both destinations simultaneously
-
-**Step 3: Configure macOS Audio**
-1. Go to **System Preferences** → **Sound** → **Output**
-2. Select the **Multi-Output Device** you just created
-3. VoicePro output now goes to both your headphones AND BlackHole
-4. Note: Volume control may be limited - adjust volume on your headphones directly
+**Step 2: Configure VoicePro Output Routing** (recommended; no OS default changes)
+1. Open VoicePro
+2. Click **Start Audio Processing**
+3. Scroll to **Audio Output Routing**
+4. Select **BlackHole 2ch** as the output device
+5. Click **Enable Audio Output**
+6. Confirm **Virtual: Active**
 
 **Step 4: Configure RingCentral Desktop App**
 1. Open RingCentral desktop application
@@ -450,11 +448,9 @@ RingCentral Desktop App - uses as microphone input
 3. Under **Microphone**, select **"BlackHole 2ch"**
 4. Under **Speaker**, select your **headphones** (so you hear callers)
 
-**Step 5: Configure VoicePro**
-1. Open VoicePro, select your physical microphone
-2. Click **Start Audio Processing**
-3. **IMPORTANT: Scroll down and click "Enable Output to Virtual Cable" button**
-4. The Virtual Cable Output card should show "Active" in green
+**Step 5: Validate the processed stream**
+1. Click **Test Processed Audio (3s)** in the Output Routing card
+2. Confirm the Self-Test shows **OK/WARN** and lists BlackHole outputs
 
 **Step 6: Test the Setup**
 1. In RingCentral Settings → Audio, test your microphone
@@ -464,9 +460,9 @@ RingCentral Desktop App - uses as microphone input
 ### Troubleshooting Virtual Audio Cable
 
 **RingCentral shows no audio input:**
-- **Most common issue:** Make sure you clicked "Enable Output to Virtual Cable" in VoicePro
-- Verify VoicePro shows "Virtual Cable Output: Active" in green
-- Check that your OS default output is set to the virtual cable (CABLE Input)
+- **Most common issue:** Output routing is not active. In VoicePro Output Routing, ensure:
+  - **Virtual: Active**
+  - **RingCentral ready: YES**
 - Restart RingCentral after changing audio settings
 - Try speaking louder - check VoicePro's Input Level meter
 
