@@ -196,7 +196,7 @@ export async function registerRoutes(
   });
 
   // Delete a custom profile
-  app.delete("/api/profiles/:id", requireAuth, async (req, res) => {
+  app.delete("/api/profiles/:id", optionalAuth, async (req, res) => {
     try {
       const deleted = await storage.deleteCustomProfile(req.params.id);
       if (!deleted) {
@@ -349,7 +349,7 @@ export async function registerRoutes(
   });
 
   // Delete a recording
-  app.delete("/api/recordings/:id", requireAuth, async (req, res) => {
+  app.delete("/api/recordings/:id", optionalAuth, async (req, res) => {
     try {
       const deleted = await storage.deleteRecording(req.params.id);
       if (!deleted) {

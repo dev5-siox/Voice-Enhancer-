@@ -114,6 +114,8 @@ export function useAudioProcessor(settings: AudioSettings) {
   const voiceBodyFilterRef = useRef<BiquadFilterNode | null>(null);
   const clarityFilterRef = useRef<BiquadFilterNode | null>(null);
   const normalizerRef = useRef<DynamicsCompressorNode | null>(null);
+  const pitchShifterNodeRef = useRef<AudioWorkletNode | null>(null);
+  const pitchShifterLoadedRef = useRef<boolean>(false);
   const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const animationFrameRef = useRef<number>(0);
   const settingsRef = useRef<AudioSettings>(settings);
@@ -252,6 +254,10 @@ export function useAudioProcessor(settings: AudioSettings) {
         normalizerRef.current.disconnect();
         normalizerRef.current = null;
       }
+      if (pitchShifterNodeRef.current) {
+        pitchShifterNodeRef.current.disconnect();
+        pitchShifterNodeRef.current = null;
+      }
       if (outputGainNodeRef.current) {
         outputGainNodeRef.current.disconnect();
         outputGainNodeRef.current = null;
@@ -329,10 +335,51 @@ export function useAudioProcessor(settings: AudioSettings) {
 
       setState((prev) => ({ ...prev, error: null }));
       
+      // Smart input device selection: avoid virtual cable devices as input
+      let selectedInputDeviceId = settingsRef.current.inputDeviceId;
+      
+      if (!selectedInputDeviceId) {
+        // No device explicitly selected - try to find the real physical microphone
+        // First, request temporary permission to get device labels
+        try {
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          tempStream.getTracks().forEach(t => t.stop());
+        } catch {
+          // Permission denied will be caught later
+        }
+        
+        const allDevices = await navigator.mediaDevices.enumerateDevices();
+        const inputDevices = allDevices.filter(d => d.kind === "audioinput");
+        
+        // Virtual cable patterns to AVOID as input sources
+        const virtualCablePatterns = [
+          /cable\s*output/i,
+          /vb-audio/i,
+          /virtual\s*cable/i,
+          /blackhole/i,
+          /soundflower/i,
+          /voicemeeter/i,
+        ];
+        
+        const isVirtualDevice = (label: string) => 
+          virtualCablePatterns.some(pattern => pattern.test(label));
+        
+        // Find a real physical microphone (not a virtual cable)
+        const physicalMic = inputDevices.find(d => d.label && !isVirtualDevice(d.label));
+        
+        if (physicalMic) {
+          selectedInputDeviceId = physicalMic.deviceId;
+          console.log("VoxFilter: Auto-selected physical microphone:", physicalMic.label);
+        } else if (inputDevices.length > 0) {
+          // Fallback: just use the first available device
+          console.warn("VoxFilter: No physical microphone detected, using first available input device");
+        }
+      }
+      
       // Request microphone access with noise suppression handled by Web Audio
       const constraints: MediaStreamConstraints = {
         audio: {
-          deviceId: settingsRef.current.inputDeviceId ? { exact: settingsRef.current.inputDeviceId } : undefined,
+          deviceId: selectedInputDeviceId ? { exact: selectedInputDeviceId } : undefined,
           echoCancellation: true,
           noiseSuppression: false, // We handle this ourselves
           autoGainControl: false, // We handle this ourselves
@@ -459,15 +506,44 @@ export function useAudioProcessor(settings: AudioSettings) {
       destinationRef.current = destination;
       processedStreamRef.current = destination.stream;
 
+      // Load AudioWorklet pitch shifter
+      let pitchShifterNode: AudioWorkletNode | null = null;
+      if (!pitchShifterLoadedRef.current) {
+        try {
+          await audioContext.audioWorklet.addModule('/pitch-shifter-processor.js');
+          pitchShifterLoadedRef.current = true;
+          console.log("VoxFilter: AudioWorklet pitch-shifter loaded");
+        } catch (err) {
+          console.warn("VoxFilter: AudioWorklet pitch-shifter failed to load, pitch shifting disabled:", err);
+        }
+      }
+      
+      if (pitchShifterLoadedRef.current) {
+        try {
+          pitchShifterNode = new AudioWorkletNode(audioContext, 'pitch-shifter-processor');
+          pitchShifterNodeRef.current = pitchShifterNode;
+          console.log("VoxFilter: Pitch shifter node created");
+        } catch (err) {
+          console.warn("VoxFilter: Pitch shifter node creation failed:", err);
+        }
+      }
+
       // Connect the full audio processing chain
       // Source -> Input Gain -> High Pass -> Notch -> Low Pass -> Noise Gate -> 
-      // Voice Body -> F1 -> F2 -> F3 -> Clarity Filter -> Normalizer -> Output Gain -> Analyser -> Destination
+      // Pitch Shifter -> Voice Body -> F1 -> F2 -> F3 -> Clarity Filter -> Normalizer -> Output Gain -> Analyser -> Destination
       source.connect(gainNode);
       gainNode.connect(highPass);
       highPass.connect(notchFilter);
       notchFilter.connect(lowPass);
       lowPass.connect(noiseGate);
-      noiseGate.connect(voiceBodyFilter);
+      
+      if (pitchShifterNode) {
+        noiseGate.connect(pitchShifterNode);
+        pitchShifterNode.connect(voiceBodyFilter);
+      } else {
+        noiseGate.connect(voiceBodyFilter);
+      }
+      
       voiceBodyFilter.connect(formantFilter1);
       formantFilter1.connect(formantFilter2);
       formantFilter2.connect(formantFilter3);
@@ -613,7 +689,14 @@ export function useAudioProcessor(settings: AudioSettings) {
       const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
       const pitchShift = s.pitchShift !== undefined ? s.pitchShift : preset.pitchShift;
       
-      // EXTREME formant shifting - these values will be VERY noticeable
+      // Apply real pitch shifting via AudioWorklet
+      if (pitchShifterNodeRef.current) {
+        const pitchRatio = Math.pow(2, pitchShift / 12);
+        pitchShifterNodeRef.current.port.postMessage({ type: 'setPitchRatio', value: pitchRatio });
+        console.log("VoxFilter: pitch shift applied", { semitones: pitchShift, ratio: pitchRatio.toFixed(4) });
+      }
+      
+      // Formant shifting via EQ filters
       // formantShift ranges from -50 to +50
       
       // For "deeper" voice (negative shift): Boost bass, cut highs, lower formants
@@ -739,10 +822,10 @@ export function useAudioProcessor(settings: AudioSettings) {
         vb.gain.value = 0;
       }
       
-      // DO NOT touch hp and lp here - they belong to noise reduction!
-      // These lines were causing noise reduction to stop working:
-      // if (hp) hp.frequency.value = 80;    // ❌ REMOVED
-      // if (lp) lp.frequency.value = 8000;  // ❌ REMOVED
+      // Reset pitch shifter to normal
+      if (pitchShifterNodeRef.current) {
+        pitchShifterNodeRef.current.port.postMessage({ type: 'setPitchRatio', value: 1.0 });
+      }
       
       console.log("VoxFilter: accent disabled");
     }

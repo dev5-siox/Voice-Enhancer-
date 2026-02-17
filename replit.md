@@ -79,7 +79,7 @@ VoxFilter is an audio processing application for sales teams using RingCentral f
 
 ## Technical Limitations
 - **Browser Audio Routing**: Web browsers cannot create virtual audio devices that appear in the system device list. The desktop app solves this with native device control.
-- **Voice Modification**: Current implementation uses pitch shifting via filter adjustments. Advanced formant-based accent modification would require additional DSP libraries.
+- **Voice Modification**: Real pitch shifting implemented via AudioWorklet granular synthesis processor (`client/public/pitch-shifter-processor.js`). Formant shaping uses peaking/shelf EQ filters. Pitch range: -12 to +12 semitones.
 
 ## Integration Options
 1. **Desktop App (Recommended)**: Use VoxFilter Desktop for guaranteed RingCentral integration with auto-configuration
