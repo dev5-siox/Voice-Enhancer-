@@ -2,8 +2,8 @@
  * @type {import('electron-builder').Configuration}
  */
 module.exports = {
-  appId: 'com.voicepro.app',
-  productName: 'VoicePro',
+  appId: 'com.voxfilter.app',
+  productName: 'VoxFilter',
   directories: {
     output: 'release',
     buildResources: 'assets',
@@ -30,7 +30,7 @@ module.exports = {
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: 'VoicePro',
+    shortcutName: 'VoxFilter',
   },
   mac: {
     target: [

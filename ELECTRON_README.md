@@ -1,15 +1,14 @@
-# VoicePro Desktop App
+# VoxFilter Desktop App
 
-The VoicePro Desktop App provides guaranteed RingCentral integration with native audio device routing.
+The VoxFilter Desktop App is the recommended way to route processed audio into **any** call app (RingCentral / Zoom / Teams / Meet / Discord / OBS) with fewer browser limitations.
 
 ## Why Desktop?
 
 Web browsers have fundamental limitations that prevent reliable audio routing to virtual cable software. The desktop app solves this by:
 
-1. **Direct device control** - Can set your system's audio output device programmatically
-2. **Auto-detection** - Automatically finds VB-Audio/BlackHole virtual cables
-3. **One-click setup** - Configures everything with a single "Auto-Configure" button
-4. **Guaranteed routing** - Audio flows directly to RingCentral without browser restrictions
+1. **Native app audio output routing** - Routes the app's output to a selected device (virtual cable) without relying on browser `setSinkId`
+2. **More reliable playback** - Avoids common autoplay restrictions and routing quirks seen in browsers
+3. **Same UI** - Uses the same Output Routing card and self-test report as the web app
 
 ## System Requirements
 
@@ -49,8 +48,8 @@ npx tsx script/build-electron.ts
 ```
 
 This creates:
-- **Windows**: `release/VoicePro-{version}-Windows.exe` (NSIS installer)
-- **Mac**: `release/VoicePro-{version}-Mac-{arch}.dmg` (Disk image)
+- **Windows**: `release/VoxFilter-{version}-Windows.exe` (NSIS installer)
+- **Mac**: `release/VoxFilter-{version}-Mac-{arch}.dmg` (Disk image)
 
 ## Downloading installers (recommended)
 
@@ -62,14 +61,14 @@ Do **not** commit `.exe`/`.dmg` binaries into git. Instead, distribute via:
 ### GitHub Actions (artifact download)
 
 1. Go to the Actions tab → run **Desktop App (Windows Installer)** (workflow_dispatch).
-2. Download the artifact **VoicePro-Windows-Installer**.
+2. Download the artifact **VoxFilter-Windows-Installer**.
 
 ### GitHub Releases (public download link)
 
 Push a tag like `desktop-v1.0.0` and GitHub Actions will build and attach:
 
-- `VoicePro-1.0.0-Windows.exe`
-- `VoicePro-1.0.0-Windows.exe.blockmap`
+- `VoxFilter-1.0.0-Windows.exe`
+- `VoxFilter-1.0.0-Windows.exe.blockmap`
 
 to a Release. Users can download from the Release page.
 
@@ -79,13 +78,13 @@ to a Release. Users can download from the Release page.
 ```
 Your Physical Mic
        ↓
-VoicePro Desktop App (captures & processes audio)
+VoxFilter Desktop App (captures & processes audio)
        ↓
 CABLE Input / BlackHole (native device selection)
        ↓
 CABLE Output / BlackHole (virtual mic)
        ↓
-RingCentral Desktop App
+Your call app
 ```
 
 ### Key Difference from Browser
@@ -95,18 +94,18 @@ RingCentral Desktop App
 | Audio capture | ✅ Works | ✅ Works |
 | Noise reduction | ✅ Works | ✅ Works |
 | Voice presets | ✅ Works | ✅ Works |
-| Virtual cable output | ⚠️ Unreliable | ✅ Guaranteed |
-| Auto device setup | ❌ No | ✅ Yes |
-| RingCentral integration | ⚠️ Manual config | ✅ One-click |
+| Virtual cable output | ⚠️ More browser-dependent | ✅ More reliable |
+| Auto device setup | ❌ No | ⚠️ (Not implemented yet) |
+| Call app integration | ⚠️ Browser constraints | ✅ Native routing path |
 
 ## Using the Desktop App
 
 1. **Install VB-Audio** (Windows) or **BlackHole** (Mac)
-2. Open VoicePro Desktop App
+2. Open VoxFilter Desktop App
 3. Select your physical microphone
 4. Click "Start Audio Processing"
-5. Click "Auto-Configure" in the Desktop Audio Routing panel
-6. Open RingCentral:
+5. In **Audio Output Routing**, select **CABLE Input / BlackHole** and click **Enable Audio Output**
+6. Open your call app:
    - Go to Settings → Audio
    - Set Microphone to "CABLE Output" (Windows) or "BlackHole" (Mac)
 7. Make calls with processed audio!
@@ -115,13 +114,13 @@ RingCentral Desktop App
 
 ### "VB-Audio/BlackHole not detected"
 - Make sure the virtual audio software is installed
-- Restart VoicePro after installing
+- Restart VoxFilter after installing
 - Click the refresh button to re-scan devices
 
-### Audio not reaching RingCentral
-- Verify "Auto-Configure" shows "Connected" status
-- Check RingCentral is using the correct microphone
-- Restart RingCentral after changing audio settings
+### Audio not reaching your call app
+- In VoxFilter, ensure **Audio Output Routing** shows **Virtual: Active** and **Call app ready: YES**
+- Check your call app is using the correct microphone device
+- Restart your call app after changing its audio settings
 
 ### App won't launch
 - Make sure the web server is running (`npm run dev`)
@@ -144,7 +143,7 @@ client/src/
 ├── hooks/
 │   └── use-electron.ts  # React hook for Electron APIs
 └── components/
-    └── electron-audio-panel.tsx  # Desktop-specific UI
+    └── (Desktop uses the same main UI; Electron APIs are used under the hood)
 ```
 
 ## Security Notes

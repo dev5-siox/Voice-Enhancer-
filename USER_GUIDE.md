@@ -1,4 +1,4 @@
-# VoicePro User Guide
+# VoxFilter User Guide
 
 ## Complete Documentation for Audio Processing Companion Application
 
@@ -20,9 +20,9 @@
 
 # Product Overview
 
-## What is VoicePro?
+## What is VoxFilter?
 
-VoicePro is a browser-based audio processing companion application designed specifically for sales teams making outbound calls. It provides real-time voice enhancement, noise reduction, and accent modification to help agents sound their professional best on every call.
+VoxFilter is a browser-based audio processing companion application designed specifically for sales teams making outbound calls. It provides real-time voice enhancement, noise reduction, and voice modification (tone/formant shaping) to help agents sound their professional best on every call.
 
 ## Key Features
 
@@ -40,7 +40,7 @@ VoicePro is a browser-based audio processing companion application designed spec
 
 ## How It Works
 
-VoicePro captures your microphone audio, processes it through a sophisticated Web Audio API pipeline, and outputs enhanced audio. The processing chain includes:
+VoxFilter captures your microphone audio, processes it through a Web Audio API pipeline, and outputs enhanced audio. The processing chain includes:
 
 1. **High-pass filter** - Removes low-frequency rumble (80-200Hz)
 2. **Notch filter** - Eliminates 60Hz electrical hum
@@ -55,12 +55,12 @@ VoicePro captures your microphone audio, processes it through a sophisticated We
 
 ## First-Time Setup
 
-1. **Open VoicePro** in your web browser
+1. **Open VoxFilter** in your web browser
 2. **Enter your name** in the welcome dialog - this registers you in the system
 3. **Click "Get Started"** to access your dashboard
 4. **Allow microphone access** when your browser requests it
 
-**Returning Users**: If you've registered before, VoicePro remembers you automatically. Your browser stores your agent ID locally, so you'll go straight to your dashboard with your saved settings.
+**Returning Users**: If you've registered before, VoxFilter remembers you automatically. Your browser stores your agent ID locally, so you'll go straight to your dashboard with your saved settings.
 
 ## Quick Start Checklist
 
@@ -375,13 +375,13 @@ Pie chart showing:
 
 ## Desktop Call App Integration (RingCentral / Zoom / Teams / Meet)
 
-VoicePro processes audio in your browser but cannot directly create a system microphone device that other desktop apps can see. To use processed audio inside a desktop call app (RingCentral/Zoom/Teams/Meet/etc), you need a **virtual audio cable** (VB-Audio / BlackHole) that acts as a bridge.
+VoxFilter processes audio in your browser but cannot directly create a system microphone device that other desktop apps can see. To use processed audio inside a desktop call app (RingCentral/Zoom/Teams/Meet/etc), you need a **virtual audio cable** (VB-Audio / BlackHole) that acts as a bridge.
 
-**Recommended**: use the **VoicePro Desktop App** (Windows installer) for more reliable routing than the browser. Download instructions live in `ELECTRON_README.md`.
+**Recommended**: use the **VoxFilter Desktop App** (Windows installer) for more reliable routing than the browser. Download instructions live in `ELECTRON_README.md`.
 
 ### Step-by-Step Setup (Windows with VB-Audio)
 
-This is the recommended setup for Windows users with the RingCentral desktop app:
+This is the recommended setup for Windows users with a desktop call app (RingCentral/Zoom/Teams/Meet/etc):
 
 **Step 1: Install VB-Audio Virtual Cable**
 1. Download from [vb-audio.com/Cable](https://vb-audio.com/Cable/) (free)
@@ -389,16 +389,16 @@ This is the recommended setup for Windows users with the RingCentral desktop app
 3. Restart your computer after installation
 4. You'll now have a new audio device called "CABLE Input" and "CABLE Output"
 
-**Step 2: Configure VoicePro Output Routing** (recommended; no OS default changes)
-1. Open VoicePro
+**Step 2: Configure VoxFilter Output Routing** (recommended; no OS default changes)
+1. Open VoxFilter
 2. Click **Start Audio Processing**
 3. Scroll to **Audio Output Routing**
 4. Select **"CABLE Input (VB-Audio Virtual Cable)"** as the output device
 5. Click **Enable Audio Output**
-6. Confirm **Virtual: Active** (and “RingCentral ready: YES”)
+6. Confirm **Virtual: Active** (and “Call app ready: YES”)
 
-**Step 3: Configure RingCentral Desktop App**
-1. Open the RingCentral desktop application
+**Step 3: Configure your call app**
+1. Open your call app (RingCentral/Zoom/Teams/Meet/etc)
 2. Go to **Settings** → **Audio**
 3. Under **Microphone**, select **"CABLE Output (VB-Audio Virtual Cable)"**
 4. Keep your headphones or speakers selected as the **Speaker** output so you can hear callers
@@ -409,21 +409,21 @@ This is the recommended setup for Windows users with the RingCentral desktop app
 3. If playback is blocked, click **Play last self-test**
 
 **Step 5: Test the Complete Flow**
-1. In RingCentral, go to Settings → Audio → Test your microphone
-2. Speak into your mic - RingCentral should show audio activity
-3. If you don't see activity, make sure "Enable Output to Virtual Cable" is clicked in VoicePro
+1. In your call app, go to Settings → Audio → Test your microphone
+2. Speak into your mic - your call app should show audio activity
+3. If you don't see activity, make sure **Enable Audio Output** is active in VoxFilter Output Routing
 
 **Audio Flow Diagram**:
 ```
 Your Physical Mic
        ↓
-VoicePro (Chrome browser) - processes audio
+VoxFilter (Chrome browser) - processes audio
        ↓
-CABLE Input (VB-Audio) - virtual speaker that VoicePro outputs to
+CABLE Input (VB-Audio) - virtual speaker that VoxFilter outputs to
        ↓
-CABLE Output (VB-Audio) - virtual mic that RingCentral reads from
+CABLE Output (VB-Audio) - virtual mic that your call app reads from
        ↓
-RingCentral Desktop App - uses as microphone input
+Your call app - uses as microphone input
 ```
 
 ### Step-by-Step Setup (Mac with BlackHole)
@@ -434,16 +434,16 @@ RingCentral Desktop App - uses as microphone input
 3. Allow the extension in System Preferences → Security & Privacy if prompted
 4. You'll now have a new audio device called "BlackHole 2ch"
 
-**Step 2: Configure VoicePro Output Routing** (recommended; no OS default changes)
-1. Open VoicePro
+**Step 2: Configure VoxFilter Output Routing** (recommended; no OS default changes)
+1. Open VoxFilter
 2. Click **Start Audio Processing**
 3. Scroll to **Audio Output Routing**
 4. Select **BlackHole 2ch** as the output device
 5. Click **Enable Audio Output**
 6. Confirm **Virtual: Active**
 
-**Step 4: Configure RingCentral Desktop App**
-1. Open RingCentral desktop application
+**Step 4: Configure your call app**
+1. Open your call app (RingCentral/Zoom/Teams/Meet/etc)
 2. Go to **Settings** → **Audio**
 3. Under **Microphone**, select **"BlackHole 2ch"**
 4. Under **Speaker**, select your **headphones** (so you hear callers)
@@ -453,27 +453,26 @@ RingCentral Desktop App - uses as microphone input
 2. Confirm the Self-Test shows **OK/WARN** and lists BlackHole outputs
 
 **Step 6: Test the Setup**
-1. In RingCentral Settings → Audio, test your microphone
+1. In your call app's audio settings, test your microphone
 2. You should see audio activity when you speak
-3. If no audio, make sure "Enable Output to Virtual Cable" is clicked in VoicePro
+3. If no audio, make sure **Enable Audio Output** is active in VoxFilter Output Routing
 
 ### Troubleshooting Virtual Audio Cable
 
-**RingCentral shows no audio input:**
-- **Most common issue:** Output routing is not active. In VoicePro Output Routing, ensure:
+**Call app shows no audio input:**
+- **Most common issue:** Output routing is not active. In VoxFilter Output Routing, ensure:
   - **Virtual: Active**
-  - **RingCentral ready: YES**
-- Restart RingCentral after changing audio settings
-- Try speaking louder - check VoicePro's Input Level meter
+  - **Call app ready: YES**
+- Restart your call app after changing audio settings
+- Try speaking louder - check VoxFilter's Input Level meter
 
 **I can't hear my own voice or callers:**
 - On Windows: You need headphones connected to hear callers (the virtual cable is for routing, not listening)
-- On Mac: Make sure you created the Multi-Output Device correctly
-- Set RingCentral's Speaker output to your headphones, NOT the virtual cable
+- Set your call app's **Speaker** output to your headphones, NOT the virtual cable
 
 **Audio is choppy or has high latency:**
 - Close unnecessary browser tabs and applications
-- Reduce VoicePro's processing features temporarily
+- Reduce VoxFilter's processing features temporarily
 - Use Chrome browser for best performance
 - Check your CPU usage - audio processing needs resources
 
@@ -485,22 +484,22 @@ RingCentral Desktop App - uses as microphone input
 ### Why This Setup Works
 
 The virtual audio cable creates a software-based audio pathway:
-1. **VoicePro** captures your microphone, processes the audio, and plays it to the system output
+1. **VoxFilter** captures your microphone, processes the audio, and plays it to the system output
 2. **Virtual Cable** catches that output and makes it available as a virtual microphone
-3. **RingCentral** sees the virtual cable as a regular microphone and uses it for calls
+3. **Your call app** sees the virtual cable as a regular microphone and uses it for calls
 
-This means your processed voice (with noise reduction, voice modification, etc.) is what RingCentral transmits to callers.
+This means your processed voice (with noise reduction, voice modification, etc.) is what your call app transmits to callers.
 
 ### Alternative: Hardware Loopback
 
 If you have a professional audio interface with loopback capability:
 1. Set your audio interface as the system output
 2. Enable loopback on your interface
-3. Select the loopback channel as microphone in RingCentral
+3. Select the loopback channel as microphone in your call app
 
-### Standalone Use (Without RingCentral)
+### Standalone Use (Without a call app)
 
-Even without RingCentral integration, VoicePro is valuable for:
+Even without call-app integration, VoxFilter is valuable for:
 - Monitoring your audio quality in real-time before calls
 - Practicing with different voice presets
 - Recording sessions for personal review
@@ -562,22 +561,22 @@ Even without RingCentral integration, VoicePro is valuable for:
 
 ## General Questions
 
-**Q: Does VoicePro record my calls?**
-A: VoicePro only records when you explicitly click the Record button (which appears after starting audio processing). Recordings are downloaded directly to your computer as audio files - they are not stored on any server.
+**Q: Does VoxFilter record my calls?**
+A: VoxFilter only records when you explicitly click the Record button (which appears after starting audio processing). Recordings are downloaded directly to your computer as audio files - they are not stored on any server.
 
 **Q: Can my manager hear my audio?**
 A: No. Admins can see your settings and status but cannot listen to your audio.
 
-**Q: Does VoicePro work offline?**
+**Q: Does VoxFilter work offline?**
 A: Audio processing works offline, but settings won't sync and admin features require internet.
 
-**Q: How much CPU does VoicePro use?**
+**Q: How much CPU does VoxFilter use?**
 A: Typically 2-5% CPU. Close other audio applications if you experience issues.
 
 ## Voice Modification
 
 **Q: Will I sound like a different person?**
-A: No. VoicePro enhances your natural voice; it doesn't replace it. Think of it as professional audio polish.
+A: No. VoxFilter enhances your natural voice; it doesn't replace it. Think of it as professional audio polish.
 
 **Q: Can customers tell I'm using voice modification?**
 A: When used moderately (±5 pitch, ±10% formant), modifications sound natural and professional.
@@ -587,10 +586,10 @@ A: "Professional" or "Confident" for most B2B calls. "Friendly" or "Energetic" f
 
 ## Technical
 
-**Q: Why can't VoicePro output directly to RingCentral?**
+**Q: Why can't VoxFilter output directly to my call app?**
 A: Browser security prevents creating virtual audio devices. Use a virtual audio cable for routing.
 
-**Q: What sample rate does VoicePro use?**
+**Q: What sample rate does VoxFilter use?**
 A: 48kHz, the standard for high-quality voice processing.
 
 **Q: Is my audio data sent to any servers?**
@@ -618,5 +617,5 @@ For additional support:
 
 ---
 
-*VoicePro v2.0 - Audio Processing for Sales Teams*
+*VoxFilter v2.0 - Audio Processing for Sales Teams*
 *Last Updated: December 2025*

@@ -6,7 +6,7 @@ This checklist is designed to **prove** (with UI state + console evidence) wheth
 - A **processed stream exists** (track counts, `AudioContext` state + sample rate)
 - **Routing works**:
   - **Local monitor playback** (speakers/headphones)
-  - **Virtual cable playback** (VB-Audio / BlackHole) suitable for RingCentral Desktop
+  - **Virtual cable playback** (VB-Audio / BlackHole) suitable for desktop call apps
 
 ## Local dev setup
 
@@ -84,7 +84,7 @@ Note: **Pitch Adjustment is disabled** in the web UI because **live pitch shifti
    - It attempts **virtual routing** if an output device is selected
 4. Confirm the UI shows:
    - Overall status: **OK / WARN / FAIL**
-   - Step breakdown (Start processing, tracks, devices, record, playback, virtual routing)
+   - Step breakdown (Start processing, tracks, devices, record, playback, routing method, virtual routing)
 
 Expected console summary:
 
@@ -107,37 +107,37 @@ Expected console summary:
    - **setSinkId: Supported** (or **Unsupported** with next step)
    - **Virtual: Active** (or Blocked/Failed with error)
    - **Monitor: Active** if local playback succeeded
-   - **RingCentral ready: YES** only when virtual routing is active **and** the selected device looks like a virtual cable.
+   - **Call app ready: YES** only when virtual routing is active **and** the selected device looks like a virtual cable.
 3. Confirm console log:
    - `VoxFilter: enableOutput() result` (object)
 
 If browser blocks playback, UI must show **Blocked** with a clear next step.
 
-## 6) Windows manual end-to-end (VB-Audio + RingCentral Desktop)
+## 6) Windows manual end-to-end (VB-Audio + desktop call app)
 
 1. Install VB-Audio Virtual Cable.
 2. VoxFilter:
    - Start Audio Processing
    - Select **CABLE Input** as output device
    - Click **Enable Audio Output**
-   - Confirm **RingCentral ready: YES**
+   - Confirm **Call app ready: YES**
 3. Windows proof (virtual cable path live):
    - Open Windows Sound settings and watch the **level meter** for the VB-Audio cable device while speaking.
-4. RingCentral Desktop:
+4. Call app:
    - Set **Microphone** to **CABLE Output (VB-Audio Virtual Cable)**
-   - Run RingCentral mic test; confirm the meter moves and your processed changes are audible to the far end.
+   - Run the app mic test; confirm the meter moves and your processed changes are audible to the far end.
 
-## 7) macOS manual end-to-end (BlackHole + RingCentral Desktop)
+## 7) macOS manual end-to-end (BlackHole + desktop call app)
 
 1. Install BlackHole 2ch.
 2. VoxFilter:
    - Start Audio Processing
    - Select **BlackHole 2ch** as output device
    - Click **Enable Audio Output**
-   - Confirm **RingCentral ready: YES**
-3. RingCentral Desktop:
+   - Confirm **Call app ready: YES**
+3. Call app:
    - Set **Microphone** to **BlackHole 2ch**
-   - Run RingCentral mic test; confirm meter moves and processed changes are audible.
+   - Run the app mic test; confirm meter moves and processed changes are audible.
 
 ## 8) Minimal decisive console logs (expected)
 
@@ -154,7 +154,7 @@ You should only need these logs to prove correctness:
 
 - **Processing OFF**: banner “Audio processing is OFF” + disabled Noise Reduction / Voice Modifier controls
 - **After Start**: DevTools console showing `VoxFilter: initialize() success` object
-- **Output Routing**: status chips (Monitor/Virtual/setSinkId/RingCentral ready) and any error text
+- **Output Routing**: status chips (Monitor/Virtual/setSinkId/Call app ready) and any error text
 - **Self-Test**: Self-Test report card with overall status + step list
 - **RingCentral**: RingCentral Desktop audio settings showing selected microphone device
 

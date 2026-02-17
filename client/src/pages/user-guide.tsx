@@ -47,7 +47,7 @@ function TableOfContents() {
     { id: "presets", label: "Voice Presets Reference" },
     { id: "profiles", label: "Custom Profiles" },
     { id: "admin", label: "Admin Panel" },
-    { id: "setup", label: "RingCentral Setup" },
+    { id: "setup", label: "Call App Setup" },
     { id: "troubleshooting", label: "Troubleshooting" },
     { id: "faq", label: "FAQ" },
   ];
@@ -436,7 +436,7 @@ export default function UserGuide() {
       <Separator />
 
       <section className="space-y-4">
-        <SectionHeading icon={Cable} title="RingCentral Setup" id="setup" />
+        <SectionHeading icon={Cable} title="Call App Setup (RingCentral / Zoom / Teams / Meet)" id="setup" />
 
         <Card>
           <CardHeader><CardTitle className="text-base">Windows Setup (VB-Audio Virtual Cable)</CardTitle></CardHeader>
@@ -447,24 +447,24 @@ export default function UserGuide() {
                 <p className="text-sm text-muted-foreground">Download from <a href="https://vb-audio.com/Cable/" target="_blank" rel="noopener noreferrer" className="text-primary underline">vb-audio.com/Cable</a> (free). Run as Administrator and restart your computer.</p>
               </div>
               <div>
-                <h4 className="font-medium text-sm">Step 2: Configure Windows Audio</h4>
-                <p className="text-sm text-muted-foreground">Right-click speaker icon in taskbar, select "CABLE Input (VB-Audio Virtual Cable)" as default output.</p>
+                <h4 className="font-medium text-sm">Step 2: Configure VoxFilter Output Routing (recommended)</h4>
+                <p className="text-sm text-muted-foreground">In VoxFilter, start audio processing, then in <strong>Audio Output Routing</strong> select <strong>CABLE Input (VB-Audio Virtual Cable)</strong> and click <strong>Enable Audio Output</strong>. Optional: run <strong>Test Processed Audio (3s)</strong>.</p>
               </div>
               <div>
-                <h4 className="font-medium text-sm">Step 3: Configure RingCentral</h4>
-                <p className="text-sm text-muted-foreground">In RingCentral Settings, set Microphone to "CABLE Output (VB-Audio Virtual Cable)". Keep headphones as Speaker.</p>
+                <h4 className="font-medium text-sm">Step 3: Configure your call app</h4>
+                <p className="text-sm text-muted-foreground">In your call app's Audio settings, set <strong>Microphone</strong> to <strong>CABLE Output (VB-Audio Virtual Cable)</strong>. Keep <strong>Speaker</strong> as your headphones/speakers (not the cable).</p>
               </div>
               <div>
                 <h4 className="font-medium text-sm">Step 4: Configure VoxFilter</h4>
-                <p className="text-sm text-muted-foreground">Select your physical microphone, click "Start Audio Processing", then scroll down and click "Enable Output to Virtual Cable".</p>
+                <p className="text-sm text-muted-foreground">Select your physical microphone, click <strong>Start Audio Processing</strong>, then ensure Output Routing shows <strong>Virtual: Active</strong> and <strong>Call app ready: YES</strong>.</p>
               </div>
             </div>
             <div className="bg-muted/50 rounded-md p-4 text-xs font-mono text-muted-foreground space-y-1">
               <p>Your Physical Mic</p>
               <p className="pl-4">{"-> VoxFilter (Chrome) - processes audio"}</p>
-              <p className="pl-8">{"-> CABLE Input (VB-Audio) - virtual speaker"}</p>
+              <p className="pl-8">{"-> CABLE Input (VB-Audio) - virtual cable output"}</p>
               <p className="pl-12">{"-> CABLE Output (VB-Audio) - virtual mic"}</p>
-              <p className="pl-16">{"-> RingCentral Desktop App"}</p>
+              <p className="pl-16">{"-> Your call app (RingCentral/Zoom/Teams/etc)"}</p>
             </div>
           </CardContent>
         </Card>
@@ -478,16 +478,16 @@ export default function UserGuide() {
                 <p className="text-sm text-muted-foreground">Download from <a href="https://existential.audio/blackhole/" target="_blank" rel="noopener noreferrer" className="text-primary underline">existential.audio/blackhole</a> (free). Allow the extension in System Preferences if prompted.</p>
               </div>
               <div>
-                <h4 className="font-medium text-sm">Step 2: Create Multi-Output Device</h4>
-                <p className="text-sm text-muted-foreground">Open Audio MIDI Setup, click +, create Multi-Output Device. Check both BlackHole 2ch and your headphones.</p>
+                <h4 className="font-medium text-sm">Step 2: Configure VoxFilter Output Routing (recommended)</h4>
+                <p className="text-sm text-muted-foreground">In VoxFilter, start audio processing, then in <strong>Audio Output Routing</strong> select <strong>BlackHole 2ch</strong> and click <strong>Enable Audio Output</strong>. Optional: run <strong>Test Processed Audio (3s)</strong>.</p>
               </div>
               <div>
-                <h4 className="font-medium text-sm">Step 3: Configure macOS & RingCentral</h4>
-                <p className="text-sm text-muted-foreground">Set system output to Multi-Output Device. In RingCentral, set Microphone to "BlackHole 2ch" and Speaker to your headphones.</p>
+                <h4 className="font-medium text-sm">Step 3: Configure your call app</h4>
+                <p className="text-sm text-muted-foreground">In your call app's Audio settings, set <strong>Microphone</strong> to <strong>BlackHole 2ch</strong>. Keep <strong>Speaker</strong> as your headphones/speakers.</p>
               </div>
               <div>
                 <h4 className="font-medium text-sm">Step 4: Configure VoxFilter</h4>
-                <p className="text-sm text-muted-foreground">Select your physical microphone, start audio processing, and enable "Output to Virtual Cable".</p>
+                <p className="text-sm text-muted-foreground">Select your physical microphone, start audio processing, then ensure Output Routing shows <strong>Virtual: Active</strong> and <strong>Call app ready: YES</strong>.</p>
               </div>
             </div>
           </CardContent>
@@ -526,15 +526,15 @@ export default function UserGuide() {
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="rc-no-audio">
-                <AccordionTrigger className="text-sm" data-testid="accordion-rc-no-audio">RingCentral shows no audio input</AccordionTrigger>
+                <AccordionTrigger className="text-sm" data-testid="accordion-rc-no-audio">Call app shows no audio input</AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  Make sure you clicked "Enable Output to Virtual Cable" in VoxFilter. Verify VoxFilter shows "Virtual Cable Output: Active" in green. Check that your OS default output is set to the virtual cable. Restart RingCentral after changing audio settings.
+                  Make sure you clicked <strong>Enable Audio Output</strong> in VoxFilter and selected a virtual cable device (VB-Audio / BlackHole). Verify Output Routing shows <strong>Virtual: Active</strong> and <strong>Call app ready: YES</strong>. Restart your call app after changing its microphone device.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="no-hear">
                 <AccordionTrigger className="text-sm" data-testid="accordion-no-hear">Can't hear my own voice or callers</AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">
-                  On Windows: You need headphones connected. On Mac: Make sure you created the Multi-Output Device correctly. Set RingCentral's Speaker output to your headphones, not the virtual cable.
+                  Use headphones to avoid feedback loops. In your call app, keep <strong>Speaker</strong> set to your headphones/speakers (not the virtual cable). Only the <strong>Microphone</strong> should be set to the virtual cable.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="unnatural">
@@ -576,7 +576,7 @@ export default function UserGuide() {
                 <AccordionContent className="text-sm text-muted-foreground">"Professional" or "Confident" for most B2B calls. "Friendly" or "Energetic" for B2C outreach.</AccordionContent>
               </AccordionItem>
               <AccordionItem value="why-virtual-cable">
-                <AccordionTrigger className="text-sm" data-testid="accordion-faq-virtual-cable">Why can't VoxFilter output directly to RingCentral?</AccordionTrigger>
+                <AccordionTrigger className="text-sm" data-testid="accordion-faq-virtual-cable">Why can't VoxFilter output directly to my call app?</AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground">Browser security prevents creating virtual audio devices. A virtual audio cable bridges the gap between the browser and desktop apps.</AccordionContent>
               </AccordionItem>
               <AccordionItem value="data-privacy">

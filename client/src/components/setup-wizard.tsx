@@ -58,10 +58,10 @@ const windowsSteps: SetupStep[] = [
   },
   {
     id: "ringcentral",
-    title: "Configure RingCentral Desktop",
-    description: "Set RingCentral to use the virtual cable as microphone",
+    title: "Configure your call app",
+    description: "Set your call app to use the virtual cable as microphone",
     details: [
-      "Open RingCentral desktop app",
+      "Open your call app (RingCentral/Zoom/Teams/Meet/etc)",
       "Go to Settings → Audio",
       "Set Microphone to 'CABLE Output (VB-Audio Virtual Cable)'",
       "Set Speaker to your headphones (so you hear callers)"
@@ -76,17 +76,17 @@ const windowsSteps: SetupStep[] = [
       "Click 'Start Audio Processing'",
       "Select 'CABLE Input' in the Output Routing dropdown",
       "Click 'Enable Audio Output'",
-      "Confirm 'RingCentral ready: YES' appears"
+      "Confirm 'Call app ready: YES' appears"
     ]
   },
   {
     id: "test",
-    title: "Test in RingCentral",
-    description: "Verify audio is flowing to RingCentral",
+    title: "Test in your call app",
+    description: "Verify audio is flowing to your call app",
     details: [
-      "In RingCentral Settings → Audio, click 'Test' for microphone",
-      "Speak into your mic - you should see audio activity in RingCentral",
-      "If no audio, re-check VoxFilter Output Routing status (Virtual: Active, RingCentral ready: YES)"
+      "In your call app's audio settings, run its microphone test",
+      "Speak into your mic - you should see audio activity",
+      "If no audio, re-check VoxFilter Output Routing status (Virtual: Active, Call app ready: YES)"
     ]
   }
 ];
@@ -118,10 +118,10 @@ const macSteps: SetupStep[] = [
   },
   {
     id: "ringcentral",
-    title: "Configure RingCentral Desktop",
-    description: "Set RingCentral to use BlackHole as microphone",
+    title: "Configure your call app",
+    description: "Set your call app to use BlackHole as microphone",
     details: [
-      "Open RingCentral desktop app",
+      "Open your call app (RingCentral/Zoom/Teams/Meet/etc)",
       "Go to Settings → Audio",
       "Set Microphone to 'BlackHole 2ch'",
       "Set Speaker to your headphones (so you hear callers)"
@@ -136,7 +136,7 @@ const macSteps: SetupStep[] = [
       "Click 'Start Audio Processing'",
       "Select 'BlackHole' in the Output Routing dropdown",
       "Click 'Enable Audio Output'",
-      "Confirm 'RingCentral ready: YES' appears"
+      "Confirm 'Call app ready: YES' appears"
     ]
   }
 ];
@@ -166,17 +166,17 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" data-testid="button-setup-wizard">
           <HelpCircle className="w-4 h-4 mr-2" />
-          RingCentral Setup
+          Call App Setup
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5" />
-            RingCentral Desktop Setup Guide
+            Desktop Call App Setup Guide
           </DialogTitle>
           <DialogDescription>
-            Follow these steps to route VoxFilter audio to the RingCentral desktop app
+            Follow these steps to route VoxFilter audio into a desktop call app (RingCentral/Zoom/Teams/Meet/etc)
           </DialogDescription>
         </DialogHeader>
 
@@ -219,7 +219,7 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {audioFlowing 
-                        ? "VoxFilter is processing. Check RingCentral mic test."
+                        ? "VoxFilter is processing. Check your call app mic test."
                         : "Start processing and speak to verify audio flow"
                       }
                     </p>
@@ -306,13 +306,13 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
               <div className="text-xs font-mono text-muted-foreground space-y-1">
                 <p>Your Physical Mic</p>
                 <p className="text-primary">       ↓</p>
-                <p>VoxFilter (Chrome) - processes audio</p>
+                <p>VoxFilter - processes audio</p>
                 <p className="text-primary">       ↓</p>
-                <p>{platform === "windows" ? "CABLE Input (VB-Audio)" : "Multi-Output Device"}</p>
+                <p>{platform === "windows" ? "CABLE Input (VB-Audio) (virtual cable output)" : "BlackHole 2ch (virtual cable output)"}</p>
                 <p className="text-primary">       ↓</p>
                 <p>{platform === "windows" ? "CABLE Output (virtual mic)" : "BlackHole 2ch (virtual mic)"}</p>
                 <p className="text-primary">       ↓</p>
-                <p>RingCentral Desktop App</p>
+                <p>Your Call App (RingCentral/Zoom/Teams/etc)</p>
               </div>
             </CardContent>
           </Card>
@@ -321,7 +321,7 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
             <div className="flex items-center gap-2 p-3 rounded-md bg-green-500/10 text-green-600 dark:text-green-400" data-testid="text-setup-complete">
               <Check className="w-4 h-4" />
               <span className="text-sm font-medium">
-                All steps completed! Test your mic in RingCentral to verify.
+                All steps completed! Test your mic in your call app to verify.
               </span>
             </div>
           )}

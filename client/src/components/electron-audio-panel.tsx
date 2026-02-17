@@ -110,7 +110,7 @@ export function ElectronAudioPanel({ isProcessing, currentInputDeviceId }: Elect
               <div>
                 <p className="font-medium">{cableName} not detected</p>
                 <p className="text-xs mt-1 opacity-80">
-                  Please install {cableName} to route audio to RingCentral.
+                  Please install {cableName} to route audio into your call app.
                 </p>
               </div>
             </div>
@@ -134,7 +134,7 @@ export function ElectronAudioPanel({ isProcessing, currentInputDeviceId }: Elect
               <div>
                 <p className="font-medium">Audio routing active</p>
                 <p className="text-xs mt-1 opacity-80">
-                  Processed audio is being sent to {cableName}. RingCentral should receive your voice.
+                  Processed audio is being sent to {cableName}. Your call app should receive your voice.
                 </p>
               </div>
             </div>

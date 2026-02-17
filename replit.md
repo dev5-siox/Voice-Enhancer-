@@ -1,10 +1,10 @@
 # VoxFilter - Audio Processing for Sales Teams
 
 ## Overview
-VoxFilter is an audio processing application for sales teams using RingCentral for outbound calling. Available as both a web app and Electron desktop app. The desktop app provides guaranteed RingCentral integration with native audio device routing. Designed to support up to 50 concurrent agents.
+VoxFilter is an audio processing companion app for sales teams making outbound calls in **any** call platform (RingCentral / Zoom / Teams / Meet / etc). Available as both a web app and an Electron desktop app.
 
 ## Current State
-- **Phase 3 Complete**: Desktop app with native audio routing
+- **Phase 3**: Desktop app foundations in place (native app output routing path is implemented; “auto-configure” UI is not)
 - **Date**: December 1, 2025
 
 ## Recent Changes
@@ -19,12 +19,10 @@ VoxFilter is an audio processing application for sales teams using RingCentral f
   - Auto-enables audio output when processing starts
   - Auto-detects VB-Audio/BlackHole and routes to it automatically
   - Improved UI with clearer output routing instructions
-- **Electron Desktop App**: Added full desktop application with native audio device control
-- Desktop app features: auto-detection of VB-Audio/BlackHole, one-click routing setup
-- Added ElectronAudioPanel component for desktop-specific controls
-- Added use-electron hook for frontend-backend IPC communication
-- Browser version now shows prompt recommending desktop app for reliable RingCentral integration
-- Updated Setup Wizard and USER_GUIDE with improved instructions
+- **Electron Desktop App**:
+  - Added IPC to support Electron-native output routing (`webContents.setAudioOutputDevice`)
+  - Desktop uses the same Output Routing UI; when in Electron it routes via native APIs instead of browser `setSinkId`
+  - Updated Setup Wizard and user guides to be call-app agnostic
 
 ## Project Architecture
 
@@ -82,15 +80,14 @@ VoxFilter is an audio processing application for sales teams using RingCentral f
 - **Voice Modification**: Real pitch shifting implemented via AudioWorklet granular synthesis processor (`client/public/pitch-shifter-processor.js`). Formant shaping uses peaking/shelf EQ filters. Pitch range: -12 to +12 semitones.
 
 ## Integration Options
-1. **Desktop App (Recommended)**: Use VoxFilter Desktop for guaranteed RingCentral integration with auto-configuration
-2. **Browser + Virtual Cable**: Use browser version with manual VB-Audio/BlackHole setup (less reliable)
+1. **Desktop App (Recommended)**: Use VoxFilter Desktop for the most reliable call-app routing
+2. **Browser + Virtual Cable**: Use browser version with manual VB-Audio/BlackHole setup (more browser-dependent)
 3. **Standalone Mode**: Use VoxFilter to monitor and visualize audio processing
 
 ## Electron Desktop App
 The desktop app provides native audio device control:
 - Auto-detects VB-Audio (Windows) and BlackHole (Mac)
-- One-click "Auto-Configure" sets up routing automatically
-- Direct device selection without browser limitations
+- Routes app output to selected device without browser limitations
 - See `ELECTRON_README.md` for development and build instructions
 
 ## File Structure

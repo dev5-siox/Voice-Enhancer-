@@ -77,7 +77,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4">
         <div className="text-xs text-muted-foreground">
-          <p>RingCentral Companion</p>
+          <p>Call App Companion</p>
           <p className="mt-1">v1.0.0</p>
         </div>
       </SidebarFooter>

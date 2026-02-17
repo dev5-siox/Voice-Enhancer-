@@ -6,7 +6,7 @@ import * as path from 'path';
 const execAsync = promisify(exec);
 
 async function buildElectron() {
-  console.log('🔨 Building VoicePro Electron App...\n');
+  console.log('🔨 Building VoxFilter Electron App...\n');
 
   console.log('1. Building frontend with Vite...');
   try {

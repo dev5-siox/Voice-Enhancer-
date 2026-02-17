@@ -6,6 +6,9 @@ on:
     tags:
       - "desktop-v*"
 
+permissions:
+  contents: write
+
 jobs:
   build-windows-installer:
     name: Build Windows NSIS installer
@@ -30,7 +33,7 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VoicePro-Windows-Installer
+          name: VoxFilter-Windows-Installer
           path: |
             release/*-Windows.exe
             release/*-Windows.exe.blockmap

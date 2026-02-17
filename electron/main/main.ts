@@ -15,6 +15,10 @@ let serverProcess: ChildProcess | null = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const SERVER_PORT = 5000;
 
+// Desktop app should not be blocked by autoplay policies.
+// (We still keep explicit "Enable Audio Output" UX in the renderer as a safety gate.)
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 function createWindow(): void {
   // Icon is optional; this repo may not ship icon assets in dev.
   const iconPath = path.join(__dirname, '../../assets/icon.png');
@@ -32,7 +36,7 @@ function createWindow(): void {
       webSecurity: true,
     },
     icon,
-    title: 'VoicePro - Audio Processing for Sales Teams',
+    title: 'VoxFilter - Audio Processing for Sales Teams',
     backgroundColor: '#0a0a0a',
     show: false,
   });
@@ -68,6 +72,20 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('audio:setOutputDevice', async (_event, deviceId: string) => {
     return audioManager?.setOutputDevice(deviceId) ?? false;
+  });
+
+  // Electron-native output routing (real pipeline): route this window's audio output to a selected deviceId.
+  ipcMain.handle('audio:setAppOutputDevice', async (_event, deviceId: string) => {
+    if (!mainWindow) return false;
+    try {
+      const wc: any = mainWindow.webContents as any;
+      if (typeof wc?.setAudioOutputDevice !== 'function') return false;
+      await wc.setAudioOutputDevice(deviceId);
+      return true;
+    } catch (error) {
+      console.error('Failed to set app audio output device:', { deviceId, error });
+      return false;
+    }
   });
 
   ipcMain.handle('audio:startRouting', async (_event, inputDeviceId: string, outputDeviceId: string) => {

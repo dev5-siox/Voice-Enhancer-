@@ -6,14 +6,14 @@ The **desktop app** avoids common browser limitations (autoplay blocking / devic
 
 ### Download + install
 
-- Download the installer: `VoicePro-<version>-Windows.exe` from your project's **GitHub Release** (recommended), or from **GitHub Actions → Desktop App (Windows Installer)** artifact.
-- Run the installer and launch **VoicePro**.
+- Download the installer: `VoxFilter-<version>-Windows.exe` (or whatever the current filename is in Releases/Artifacts).
+- Run the installer and launch **VoxFilter**.
 
 See `ELECTRON_README.md` for the exact download workflow and tag-based releases.
 
 ## ✅ You DON'T Need Virtual Cable for Testing!
 
-Virtual cable (VB-Audio) is ONLY needed if you want to use the processed audio in apps like **RingCentral** or **Zoom**. For just testing the audio effects, you can skip it!
+Virtual cable (VB-Audio) is ONLY needed if you want to use the processed audio in apps like **RingCentral / Zoom / Teams / Meet**. For just testing the audio effects, you can skip it!
 
 ---
 
@@ -108,7 +108,7 @@ Your Mic → Processing → Your Speakers/Headphones
 ```
 **YOU hear the processed audio** ✅
 
-### WITH Virtual Cable (For RingCentral/Zoom/Teams/Meet/etc)
+### WITH Virtual Cable (For call apps)
 ```
 Your Mic → Processing → Virtual Cable → Call App (RingCentral/Zoom/Teams/Meet/etc)
                      ↓
@@ -209,7 +209,7 @@ Your Mic → Processing → Virtual Cable → Call App (RingCentral/Zoom/Teams/M
    - Mac: **BlackHole 2ch**
 4. Confirm the UI shows:
    - **Virtual: Active**
-   - **RingCentral ready: YES** (this just means “virtual cable output is active”)
+   - **Call app ready: YES** (this just means “virtual cable output is active”)
 
 ### Step 3: In your Call App (RingCentral/Zoom/Teams/Meet)
 1. Open Settings → Audio

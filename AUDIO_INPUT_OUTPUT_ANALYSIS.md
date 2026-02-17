@@ -1,123 +1,59 @@
-# Audio Input/Output Analysis & Issues
+#+#+#+#+  Purpose
 
-**Date**: February 12, 2026  
-**Analysis**: Voice processing pipeline audit
+This document summarizes the **current** VoxFilter audio I/O behavior (web + Electron) and the most common failure modes, in a way that matches what the app actually does today.
 
----
-
-## Current Audio Routing
-
-### Input Chain
-```
-Microphone Input
-  ↓ (constraints: echo cancellation ON, auto gain OFF, noise suppression OFF)
-AudioContext Source Node
-  ↓
-Input Gain (user adjustable)
-  ↓
-High-Pass Filter (80Hz) - removes rumble
-  ↓
-Notch Filter (60Hz) - removes electrical hum
-  ↓
-Low-Pass Filter (8kHz) - removes hiss
-  ↓
-Noise Gate (dynamics compressor)
-  ↓
-Voice Body Filter - warmth adjustment
-  ↓
-Formant Filter 1 (500Hz) - voice character
-  ↓
-Formant Filter 2 (1500Hz) - brightness
-  ↓
-Formant Filter 3 (2800Hz) - clarity
-  ↓
-Clarity Filter (4kHz boost)
-  ↓
-Normalizer (dynamics compressor)
-  ↓
-Output Gain (user adjustable)
-  ↓
-Analyser (for visualization)
-  ↓
-MediaStreamDestination (processed output)
-```
-
-### Output Routing (Auto-enabled on start)
-The processed audio is routed to **TWO destinations**:
-
-1. **Monitor Output** (`monitorOutputRef`) → **Speakers/Headphones**
-   - So user can hear their processed voice
-   - Uses real speaker device (avoids virtual cable)
-
-2. **Virtual Cable Output** (`audioOutputRef`) → **VB-Audio/BlackHole**
-   - For apps like RingCentral to capture
-   - Looks for "cable input", "vb-audio", "blackhole" devices
+If you’re debugging a user report, prefer:
+- `docs/debug/repro-checklist.md`
+- `docs/debug/evidence-ledger.md`
 
 ---
 
-## 🚨 POTENTIAL ISSUES
+## Current audio pipeline (conceptual)
 
-### 1. **Echo/Feedback Loop** 🔴 CRITICAL
-**Problem**: The monitor output plays processed audio through speakers while microphone is active.
+### Input chain (Web Audio)
+Mic → WebAudio processing chain → `MediaStreamDestination` (processed stream)
 
-**Result**:
-```
-Microphone picks up sound
-  ↓
-Processed and played through speakers
-  ↓
-Microphone picks up the speaker output again (FEEDBACK!)
-  ↓
-Processed again...
-  ↓
-ECHO LOOP!
-```
+### Output routing (explicit user action)
+Routing happens only after the user clicks **Enable Audio Output** in **Audio Output Routing**.
 
-**Evidence in code**:
-```typescript
-// Line 329: Monitor always active!
-monitorOutputRef.current.srcObject = destination.stream;
-monitorOutputRef.current.autoplay = true;
-```
+- **Web (browser)**:
+  - **Monitor** uses `HTMLAudioElement.play()` (may be blocked by autoplay policy).
+  - **Virtual** uses `HTMLMediaElement.setSinkId()` + `play()` (requires Chrome/Edge and https/localhost).
 
-### 2. **Double Audio Routing** 🟠 HIGH
-Both `audioOutputRef` AND `monitorOutputRef` are playing the same stream:
-- Line 329: `monitorOutputRef` → speakers
-- Line 359: `audioOutputRef` → virtual cable
-- Both set to `autoplay = true`
+- **Desktop (Electron)**:
+  - **Virtual** uses **native app output routing** (`webContents.setAudioOutputDevice`) + `play()`.
+  - Autoplay policy is relaxed for the app, but we still keep explicit UX and status chips.
 
-**Problem**: User hears BOTH direct and processed audio if using headphones incorrectly.
+### What the “Virtual cable” actually means
+The app routes audio to the **virtual cable output device** (e.g. **CABLE Input** / **BlackHole**). Your call app must then use the corresponding **virtual mic input** (e.g. **CABLE Output** / **BlackHole**) as its microphone.
 
-### 3. **No Echo Cancellation on Processed Output** 🟡 MEDIUM
-```typescript
-// Line 124: Native echo cancellation is ON for input
-echoCancellation: true,
+---
 
-// But processed output goes back to speakers WITHOUT echo cancellation
-// This can cause feedback if using speakers instead of headphones
-```
+## Common failure modes (and how they surface now)
 
-### 4. **Missing Headphone Detection** 🟡 MEDIUM
-The app doesn't check if user has **headphones** vs **speakers**:
-- **Headphones**: Safe - no feedback
-- **Speakers**: Dangerous - high chance of feedback loop
+### 1) “No difference” / “noise reduction doesn’t work”
+Usually one of:
+- Processing is **OFF** (UI shows OFF banner and effect controls are gated)
+- Output routing is **Inactive/Blocked/Failed**
+- Call app mic isn’t set to the virtual mic input (CABLE Output / BlackHole)
 
-### 5. **Latency Issues** 🟡 MEDIUM
-Current latency calculation (line 290):
-```typescript
-const latency = (audioContext.baseLatency || 0) * 1000 + 
-                (audioContext.outputLatency || 0) * 1000;
-```
+### 2) Autoplay blocked (web)
+Monitor/Virtual shows **Blocked** and the UI provides next-step text. Retrying **Enable Audio Output** from a user gesture usually resolves it.
 
-**Typical values**:
-- Base latency: 10-20ms
-- Output latency: 10-30ms
-- **Total**: 20-50ms minimum
+### 3) `setSinkId` unsupported (web)
+Virtual shows **Unsupported** with next-step guidance (use Chrome/Edge, https/localhost).
 
-**Plus**:
-- Processing chain delay: ~10-20ms (11 audio nodes)
-- Virtual cable routing: +10-30ms
-- **Real-world latency**: 40-100ms
+### 4) Feedback/echo
+Monitor output on speakers can create feedback. Recommend headphones or disabling monitor while using virtual routing.
+
+---
+
+## Recommended proof points (support-ready)
+- Run **Test Processed Audio (3s)** and export the report:
+  - Confirms raw + processed track counts
+  - Lists audio output devices
+  - Attempts playback + routing
+  - Shows routing method (**Electron native** vs **browser setSinkId**) in the step list
 
 Users might hear a noticeable delay.
 

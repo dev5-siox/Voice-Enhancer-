@@ -120,7 +120,7 @@ export function useAudioProcessor(settings: AudioSettings) {
   const animationFrameRef = useRef<number>(0);
   const settingsRef = useRef<AudioSettings>(settings);
   
-  // Audio output element for routing to virtual cable (for RingCentral)
+  // Audio output element for routing to a virtual cable (for any call app)
   const audioOutputRef = useRef<HTMLAudioElement | null>(null);
   // Monitor output element for routing to speakers (so user can hear themselves)
   const monitorOutputRef = useRef<HTMLAudioElement | null>(null);
@@ -1077,6 +1077,76 @@ export function useAudioProcessor(settings: AudioSettings) {
     }
 
     try {
+      const electronApi = typeof window !== "undefined" ? (window as any).electronAPI : null;
+      const canSetAppOutputDevice = typeof electronApi?.audio?.setAppOutputDevice === "function";
+
+      // Electron desktop path: use webContents.setAudioOutputDevice() (native) + a single playback element.
+      // This avoids relying on setSinkId support and is generally more reliable than browser routing.
+      if (canSetAppOutputDevice && !!deviceId) {
+        const targetDeviceId = deviceId ?? null;
+        const out = audioOutputRef.current ?? new Audio();
+        audioOutputRef.current = out;
+        out.srcObject = processedStreamRef.current;
+
+        const setSinkIdSupported = typeof (out as any)?.setSinkId === "function";
+        let virtualEnabled = false;
+        let virtualStatus: OutputRouteStatus = "inactive";
+        let virtualError: string | null = null;
+
+        if (!targetDeviceId) {
+          virtualStatus = "failed";
+          virtualError = "Select a virtual cable output device (VB-Audio CABLE Input / BlackHole) first.";
+        } else {
+          try {
+            const ok = await electronApi.audio.setAppOutputDevice(targetDeviceId);
+            if (!ok) throw new Error("setAppOutputDevice returned false");
+            console.log("VoxFilter: electron setAudioOutputDevice OK", { deviceId: targetDeviceId });
+          } catch (e) {
+            virtualStatus = "failed";
+            virtualError = "Desktop output routing failed. See console for details.";
+            console.error("VoxFilter: electron setAudioOutputDevice failed:", e);
+          }
+
+          if (virtualStatus !== "failed") {
+            try {
+              await out.play();
+              virtualEnabled = true;
+              virtualStatus = "active";
+            } catch (e) {
+              const name = (e as any)?.name;
+              virtualStatus = name === "NotAllowedError" ? "blocked" : "failed";
+              virtualError =
+                name === "NotAllowedError"
+                  ? "Playback blocked. Try again, then allow audio output if prompted."
+                  : "Virtual output playback failed. See console for details.";
+              console.error("VoxFilter: electron virtual play() failed:", e);
+            }
+          }
+        }
+
+        setState((prev) => ({
+          ...prev,
+          setSinkIdSupported,
+          isMonitorEnabled: false,
+          monitorStatus: "inactive",
+          monitorError: null,
+          isVirtualOutputEnabled: virtualEnabled,
+          virtualStatus,
+          virtualError,
+          // Back-compat: this flag now means "virtual cable routing is active"
+          isOutputEnabled: virtualEnabled,
+          outputDeviceId: targetDeviceId,
+        }));
+
+        console.log("VoxFilter: enableOutput() result", {
+          mode: "electron",
+          virtual: { enabled: virtualEnabled, status: virtualStatus, deviceId: targetDeviceId },
+          setSinkIdSupported,
+        });
+
+        return virtualEnabled;
+      }
+
       // 1) Local monitor (optional): lets the user hear processed audio.
       let monitorEnabled = false;
       let monitorStatus: OutputRouteStatus = "inactive";
@@ -1099,7 +1169,7 @@ export function useAudioProcessor(settings: AudioSettings) {
         }
       }
 
-      // 2) Virtual cable output (required for RingCentral): must set sink + play.
+      // 2) Virtual cable output (for call apps): must set sink + play.
       const targetDeviceId = deviceId ?? null;
       const out = audioOutputRef.current ?? new Audio();
       audioOutputRef.current = out;
@@ -1172,6 +1242,18 @@ export function useAudioProcessor(settings: AudioSettings) {
 
   // Disable audio output
   const disableOutput = useCallback(() => {
+    const electronApi = typeof window !== "undefined" ? (window as any).electronAPI : null;
+    const canSetAppOutputDevice = typeof electronApi?.audio?.setAppOutputDevice === "function";
+
+    if (canSetAppOutputDevice) {
+      try {
+        // Reset to default device for this window (best-effort).
+        void electronApi.audio.setAppOutputDevice("default");
+      } catch {
+        // ignore
+      }
+    }
+
     // Stop monitor audio
     if (monitorOutputRef.current) {
       monitorOutputRef.current.pause();
@@ -1447,7 +1529,7 @@ export function useAudioProcessor(settings: AudioSettings) {
           });
         }
 
-        // Step 6: virtual routing (setSinkId + play)
+        // Step 6: virtual routing (browser: setSinkId + play, Electron: native app output routing)
         const outId = opts?.outputDeviceId ?? state.outputDeviceId;
         if (!outId) {
           addStep({
@@ -1457,6 +1539,16 @@ export function useAudioProcessor(settings: AudioSettings) {
             message: "No output device selected. Select VB-Audio CABLE Input / BlackHole and re-run.",
           });
         } else {
+          const electronApi = typeof window !== "undefined" ? (window as any).electronAPI : null;
+          const canSetAppOutputDevice = typeof electronApi?.audio?.setAppOutputDevice === "function";
+
+          addStep({
+            id: "routing-method",
+            name: "Routing method",
+            status: "ok",
+            message: canSetAppOutputDevice ? "Electron native output routing" : "Browser output routing (setSinkId)",
+          });
+
           const ok = await enableOutput(outId);
           addStep({
             id: "virtual-routing",

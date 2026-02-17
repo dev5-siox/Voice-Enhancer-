@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Mic, MicOff, Volume2, Settings2, Sparkles, Save, Circle, Cable, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -110,6 +111,16 @@ export function AudioControls({
   getAnalyserData,
   error,
 }: AudioControlsProps) {
+  const [copiedSelfTest, setCopiedSelfTest] = useState(false);
+
+  const selfTestReportJson = useMemo(() => {
+    if (!selfTestReport) return null;
+    try {
+      return JSON.stringify(selfTestReport, null, 2);
+    } catch {
+      return null;
+    }
+  }, [selfTestReport]);
   const inputDevices = devices.filter((d) => d.kind === "audioinput");
   const outputDevices = devices.filter((d) => d.kind === "audiooutput");
   const processingActive = isInitialized && isProcessing;
@@ -128,7 +139,7 @@ export function AudioControls({
   const selectedOutputLabel =
     outputDeviceId ? outputDevices.find((d) => d.deviceId === outputDeviceId)?.label : undefined;
   const selectedLooksVirtual = selectedOutputLabel ? isVirtualCableLabel(selectedOutputLabel) : false;
-  const ringCentralReady = Boolean(isVirtualOutputEnabled && selectedLooksVirtual);
+  const callAppReady = Boolean(isVirtualOutputEnabled && selectedLooksVirtual);
   const anyOutputEnabled = Boolean(isMonitorEnabled || isVirtualOutputEnabled);
 
   const badgeForStatus = (status: OutputRouteStatus) => {
@@ -160,7 +171,7 @@ export function AudioControls({
             <div className="p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm">
               <p className="font-medium">Audio processing is OFF</p>
               <p className="text-xs mt-1 opacity-80">
-                Start audio processing to hear any noise reduction / voice changes. When processing is off, RingCentral will hear your unprocessed mic (or nothing).
+                Start audio processing to hear any noise reduction / voice changes. When processing is off, your call app will hear your unprocessed mic (or nothing).
               </p>
             </div>
           )}
@@ -493,7 +504,7 @@ export function AudioControls({
         </Card>
       )}
 
-      {/* Virtual Cable Output - CRITICAL FOR RINGCENTRAL */}
+      {/* Virtual Cable Output - for any call app */}
       {isInitialized && onEnableOutput && onDisableOutput && (
         <Card className={anyOutputEnabled ? "border-green-500/50" : "border-amber-500/50"}>
           <CardHeader className="pb-3">
@@ -509,23 +520,23 @@ export function AudioControls({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {ringCentralReady && (
+              {callAppReady && (
                 <div className="flex items-start gap-2 p-3 rounded-md bg-green-500/10 text-green-700 dark:text-green-300 text-sm">
                   <Cable className="w-4 h-4 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-medium">RingCentral routing ready</p>
+                    <p className="font-medium">Call app routing ready</p>
                     <p className="text-xs mt-1 opacity-80">
-                      VoxFilter is outputting processed audio to a virtual cable output device. Set RingCentral mic to the matching virtual mic input (CABLE Output / BlackHole).
+                      VoxFilter is outputting processed audio to a virtual cable output device. In your call app (RingCentral/Zoom/Teams/etc), set the microphone to the matching virtual mic input (CABLE Output / BlackHole).
                     </p>
                   </div>
                 </div>
               )}
 
-              {!ringCentralReady && (
+              {!callAppReady && (
                 <div className="flex items-start gap-2 p-3 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 text-sm">
                   <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-medium">RingCentral routing not ready</p>
+                    <p className="font-medium">Call app routing not ready</p>
                     <p className="text-xs mt-1 opacity-80">
                       Select a virtual cable output device (VB-Audio CABLE Input / BlackHole), then click Enable. If your browser blocks playback you will see “Blocked”.
                     </p>
@@ -555,9 +566,9 @@ export function AudioControls({
                 </Badge>
                 <Badge
                   variant="secondary"
-                  className={ringCentralReady ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}
+                  className={callAppReady ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-300"}
                 >
-                  RingCentral ready: {ringCentralReady ? "YES" : "NO"}
+                  Call app ready: {callAppReady ? "YES" : "NO"}
                 </Badge>
               </div>
 
@@ -594,7 +605,7 @@ export function AudioControls({
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    For RingCentral: Select "CABLE Input" (VB-Audio) or "BlackHole" as output, then set that same device as your mic in RingCentral.
+                    For desktop call apps: Select "CABLE Input" (VB-Audio) or "BlackHole" as output, then set your app microphone to "CABLE Output" / "BlackHole".
                   </p>
                 </div>
               )}
@@ -647,6 +658,29 @@ export function AudioControls({
                           {(selfTestReport.overallStatus || "fail").toUpperCase()}
                         </Badge>
                       </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          disabled={!selfTestReportJson}
+                          onClick={async () => {
+                            if (!selfTestReportJson) return;
+                            try {
+                              await navigator.clipboard.writeText(selfTestReportJson);
+                              setCopiedSelfTest(true);
+                              window.setTimeout(() => setCopiedSelfTest(false), 1500);
+                            } catch (e) {
+                              console.error("VoxFilter: failed to copy self-test report", e);
+                            }
+                          }}
+                        >
+                          {copiedSelfTest ? "Copied" : "Copy report"}
+                        </Button>
+                      </div>
+
                       <div className="space-y-1">
                         {(selfTestReport.steps || []).map((s) => (
                           <div key={s.id} className="flex items-start justify-between gap-3">
@@ -734,12 +768,12 @@ export function AudioControls({
 
               {/* Setup instructions */}
               <div className="mt-4 p-3 rounded-md bg-muted/50 text-xs space-y-2">
-                <p className="font-medium">Setup for RingCentral:</p>
+                <p className="font-medium">Setup for a call app (RingCentral/Zoom/Teams/Meet/etc):</p>
                 <ol className="list-decimal ml-4 space-y-1 text-muted-foreground">
                   <li>Install VB-Audio Virtual Cable (Windows) or BlackHole (Mac)</li>
                   <li>Select "CABLE Input" in the dropdown above</li>
-                  <li>In RingCentral, set your microphone to "CABLE Output"</li>
-                  <li>RingCentral will now receive your processed voice</li>
+                  <li>In your call app, set your microphone to "CABLE Output" / "BlackHole 2ch"</li>
+                  <li>Your call app will now receive your processed voice</li>
                 </ol>
               </div>
             </div>

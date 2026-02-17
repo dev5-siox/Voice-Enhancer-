@@ -4,9 +4,8 @@ import { AudioControls } from "@/components/audio-controls";
 import { CustomProfiles } from "@/components/custom-profiles";
 import { CallTimer } from "@/components/call-timer";
 import { StatusBadge } from "@/components/status-badge";
-import { ElectronAudioPanel } from "@/components/electron-audio-panel";
 import { useAudioProcessor } from "@/hooks/use-audio-processor";
-import { useElectron, isRunningInElectron } from "@/hooks/use-electron";
+import { isRunningInElectron } from "@/hooks/use-electron";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,7 +53,7 @@ export default function AgentDashboard() {
   const [setupName, setSetupName] = useState("");
 
   const audioProcessor = useAudioProcessor(settings);
-  const { isElectron, platform, appVersion } = useElectron();
+  const isElectron = isRunningInElectron();
 
   // Fetch current agent data if we have an ID
   const { data: agentData } = useQuery<Agent>({
@@ -302,7 +301,7 @@ export default function AgentDashboard() {
           <DialogHeader>
             <DialogTitle>Welcome to VoxFilter</DialogTitle>
             <DialogDescription>
-              Enter your name to get started with audio processing for your RingCentral calls.
+              Enter your name to get started with audio processing for your calls (RingCentral/Zoom/Teams/Meet/etc).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -370,15 +369,15 @@ export default function AgentDashboard() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-sm">
-                  <p className="text-xs font-medium mb-1">How to use with RingCentral:</p>
+                  <p className="text-xs font-medium mb-1">How to use with a call app:</p>
                   <ol className="text-xs list-decimal ml-3 space-y-0.5">
                     <li>Start audio processing below to filter your mic</li>
                     <li>For full integration, use a virtual audio cable app (e.g., VB-Audio, Blackhole)</li>
                     <li>Route VoxFilter output to the virtual device</li>
-                    <li>Select the virtual device as your mic in RingCentral</li>
+                    <li>Select the virtual device as your mic in your call app</li>
                   </ol>
                   <p className="text-xs mt-2 text-muted-foreground">
-                    Output routing requires Chrome/Edge support for setSinkId (https/localhost). RingCentral must be set to the virtual cable as its microphone.
+                    Output routing requires Chrome/Edge support for setSinkId (https/localhost). Your call app must be set to the virtual cable as its microphone.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -426,7 +425,7 @@ export default function AgentDashboard() {
           <CardContent className="py-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Keyboard className="w-4 h-4" />
-              <span>Quick tip: Start audio processing before joining your RingCentral call for best results</span>
+              <span>Quick tip: Start audio processing before joining your call for best results</span>
             </div>
           </CardContent>
         </Card>
@@ -468,14 +467,6 @@ export default function AgentDashboard() {
           error={audioProcessor.error}
         />
 
-        {/* Electron Desktop Audio Routing */}
-        {isElectron && (
-          <ElectronAudioPanel
-            isProcessing={audioProcessor.isProcessing}
-            currentInputDeviceId={settings.inputDeviceId}
-          />
-        )}
-
         {/* Desktop App Banner (when in browser) */}
         {!isElectron && audioProcessor.isProcessing && (
           <Card className="bg-blue-500/5 border-blue-500/20">
@@ -484,7 +475,7 @@ export default function AgentDashboard() {
                 <div className="flex items-center gap-2 text-sm">
                   <Monitor className="w-4 h-4 text-blue-500" />
                   <span className="text-muted-foreground">
-                    For guaranteed RingCentral integration, use the <span className="font-medium text-foreground">VoxFilter Desktop App</span>
+                    For the most reliable call-app integration, use the <span className="font-medium text-foreground">VoxFilter Desktop App</span>
                   </span>
                 </div>
               </div>

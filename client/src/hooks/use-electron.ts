@@ -17,6 +17,7 @@ interface ElectronAPI {
     getDevices: () => Promise<AudioDevices>;
     getVirtualCableDevice: () => Promise<AudioDevice | null>;
     setOutputDevice: (deviceId: string) => Promise<boolean>;
+    setAppOutputDevice?: (deviceId: string) => Promise<boolean>;
     startRouting: (inputDeviceId: string, outputDeviceId: string) => Promise<boolean>;
     stopRouting: () => Promise<boolean>;
     isRouting: () => Promise<boolean>;
