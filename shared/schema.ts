@@ -338,20 +338,20 @@ export const accentPresetConfigs: Record<AccentPresetType, {
   
   // === INTERNATIONAL ACCENTS ===
   british: { 
-    pitchShift: 1, 
-    formantShift: 8, 
-    description: "Crisp, articulate British inflection",
-    highPassFreq: 90,
-    lowPassFreq: 8500,
-    resonanceQ: 0.6,
+    pitchShift: 3,
+    formantShift: 22,
+    description: "Stronger British-style crispness (tone shaping)",
+    highPassFreq: 120,
+    lowPassFreq: 9500,
+    resonanceQ: 1.2,
   },
   australian: { 
-    pitchShift: 2, 
-    formantShift: 10, 
-    description: "Friendly Australian vocal pattern",
-    highPassFreq: 85,
-    lowPassFreq: 9000,
-    resonanceQ: 0.65,
+    pitchShift: 3,
+    formantShift: 18,
+    description: "Stronger Australian-style brightness (tone shaping)",
+    highPassFreq: 110,
+    lowPassFreq: 10000,
+    resonanceQ: 1.0,
   },
   
   // === VOICE CHARACTER/PERSONA PRESETS ===

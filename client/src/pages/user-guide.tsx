@@ -338,8 +338,8 @@ export default function UserGuide() {
                   </tr>
                 </thead>
                 <tbody className="text-muted-foreground">
-                  <tr className="border-b"><td className="py-2 pr-4">British</td><td className="py-2 pr-4">+1</td><td className="py-2 pr-4">+8%</td><td className="py-2">Crisp, articulate diction</td></tr>
-                  <tr><td className="py-2 pr-4">Australian</td><td className="py-2 pr-4">+2</td><td className="py-2 pr-4">+10%</td><td className="py-2">Friendly, approachable</td></tr>
+                  <tr className="border-b"><td className="py-2 pr-4">British</td><td className="py-2 pr-4">+3</td><td className="py-2 pr-4">+22%</td><td className="py-2">Stronger crispness (tone shaping)</td></tr>
+                  <tr><td className="py-2 pr-4">Australian</td><td className="py-2 pr-4">+3</td><td className="py-2 pr-4">+18%</td><td className="py-2">Stronger brightness (tone shaping)</td></tr>
                 </tbody>
               </table>
             </div>
@@ -627,7 +627,7 @@ export default function UserGuide() {
 
       <Separator />
       <p className="text-xs text-muted-foreground text-center pb-8">
-        VoxFilter {typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__ ? `v${__APP_VERSION__}` : "v1.0.3"} - Audio Processing for Sales Teams
+        VoxFilter {typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__ ? `v${__APP_VERSION__}` : "v1.0.4"} - Audio Processing for Sales Teams
       </p>
     </div>
   );
