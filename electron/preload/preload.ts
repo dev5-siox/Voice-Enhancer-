@@ -29,6 +29,8 @@ export interface ElectronAPI {
   app: {
     getPlatform: () => Promise<NodeJS.Platform>;
     getVersion: () => Promise<string>;
+    openSoundSettings: () => Promise<boolean>;
+    openExternal: (url: string) => Promise<boolean>;
   };
 }
 
@@ -46,6 +48,8 @@ const electronAPI: ElectronAPI = {
   app: {
     getPlatform: () => ipcRenderer.invoke('app:getPlatform'),
     getVersion: () => ipcRenderer.invoke('app:getVersion'),
+    openSoundSettings: () => ipcRenderer.invoke('app:openSoundSettings'),
+    openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
   },
 };
 
@@ -53,6 +57,6 @@ contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
+    electronAPI?: ElectronAPI;
   }
 }

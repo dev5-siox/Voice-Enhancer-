@@ -142,7 +142,10 @@ export function useAudioProcessor(settings: AudioSettings) {
     try {
       const deviceList = await navigator.mediaDevices.enumerateDevices();
       const audioDevices = deviceList.filter(
-        (device) => device.kind === "audioinput" || device.kind === "audiooutput"
+        (device) =>
+          (device.kind === "audioinput" || device.kind === "audiooutput") &&
+          device.deviceId !== "default" &&
+          device.deviceId !== "communications"
       ).map((device) => ({
         deviceId: device.deviceId,
         label: device.label || `${device.kind} (${device.deviceId.slice(0, 8)})`,
@@ -338,6 +341,19 @@ export function useAudioProcessor(settings: AudioSettings) {
       // Smart input device selection: avoid virtual cable devices as input
       let selectedInputDeviceId = settingsRef.current.inputDeviceId;
       
+      // Virtual cable patterns to AVOID as input sources
+      const virtualCablePatterns = [
+        /cable\s*output/i,
+        /vb-audio/i,
+        /virtual\s*cable/i,
+        /blackhole/i,
+        /soundflower/i,
+        /voicemeeter/i,
+      ];
+
+      const isVirtualDevice = (label: string) =>
+        virtualCablePatterns.some((pattern) => pattern.test(label));
+
       if (!selectedInputDeviceId) {
         // No device explicitly selected - try to find the real physical microphone
         // First, request temporary permission to get device labels
@@ -349,30 +365,20 @@ export function useAudioProcessor(settings: AudioSettings) {
         }
         
         const allDevices = await navigator.mediaDevices.enumerateDevices();
-        const inputDevices = allDevices.filter(d => d.kind === "audioinput");
-        
-        // Virtual cable patterns to AVOID as input sources
-        const virtualCablePatterns = [
-          /cable\s*output/i,
-          /vb-audio/i,
-          /virtual\s*cable/i,
-          /blackhole/i,
-          /soundflower/i,
-          /voicemeeter/i,
-        ];
-        
-        const isVirtualDevice = (label: string) => 
-          virtualCablePatterns.some(pattern => pattern.test(label));
+        const inputDevices = allDevices
+          .filter((d) => d.kind === "audioinput")
+          .filter((d) => d.deviceId !== "default" && d.deviceId !== "communications");
         
         // Find a real physical microphone (not a virtual cable)
-        const physicalMic = inputDevices.find(d => d.label && !isVirtualDevice(d.label));
+        const physicalMic = inputDevices.find((d) => d.label && !isVirtualDevice(d.label));
         
         if (physicalMic) {
           selectedInputDeviceId = physicalMic.deviceId;
           console.log("VoxFilter: Auto-selected physical microphone:", physicalMic.label);
         } else if (inputDevices.length > 0) {
-          // Fallback: just use the first available device
-          console.warn("VoxFilter: No physical microphone detected, using first available input device");
+          // Fallback: use the first non-default deviceId to avoid OS default often being a virtual cable.
+          selectedInputDeviceId = inputDevices[0].deviceId;
+          console.warn("VoxFilter: No labeled physical mic detected; using first available input device");
         }
       }
       
@@ -387,7 +393,47 @@ export function useAudioProcessor(settings: AudioSettings) {
         },
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // Safety net: if we accidentally captured from a virtual cable (common when OS default mic is VB-Cable),
+      // retry once with a best-effort physical mic selection.
+      try {
+        const track = stream.getAudioTracks()[0];
+        const label = track?.label ?? "";
+        const isVirtualCaptured =
+          /cable\s*output/i.test(label) ||
+          /vb-audio/i.test(label) ||
+          /virtual\s*cable/i.test(label) ||
+          /blackhole/i.test(label) ||
+          /soundflower/i.test(label) ||
+          /voicemeeter/i.test(label);
+
+        if (isVirtualCaptured) {
+          const allDevices = await navigator.mediaDevices.enumerateDevices();
+          const inputDevices = allDevices
+            .filter((d) => d.kind === "audioinput")
+            .filter((d) => d.deviceId !== "default" && d.deviceId !== "communications");
+
+          const physicalMic = inputDevices.find((d) => d.label && !isVirtualDevice(d.label));
+          const retryId = physicalMic?.deviceId ?? inputDevices[0]?.deviceId ?? null;
+
+          if (retryId && retryId !== selectedInputDeviceId) {
+            console.warn("VoxFilter: captured virtual cable as mic; retrying with physical mic", {
+              captured: label,
+              retryId,
+              retryLabel: physicalMic?.label,
+            });
+            stream.getTracks().forEach((t) => t.stop());
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: { ...(constraints.audio as any), deviceId: { exact: retryId } },
+            });
+            selectedInputDeviceId = retryId;
+          }
+        }
+      } catch (e) {
+        console.warn("VoxFilter: mic safety-net check failed (continuing):", e);
+      }
+
       streamRef.current = stream;
 
       // Create audio context with low latency
@@ -1249,8 +1295,8 @@ export function useAudioProcessor(settings: AudioSettings) {
 
   // Change output device
   const setOutputDevice = useCallback(async (deviceId: string) => {
-    if (deviceId === "default") {
-      // Treat "default" as clearing the virtual routing selection.
+    if (deviceId === "__system_default__") {
+      // Treat "__system_default__" as clearing the virtual routing selection.
       if (audioOutputRef.current) {
         try {
           audioOutputRef.current.pause();
@@ -1266,7 +1312,7 @@ export function useAudioProcessor(settings: AudioSettings) {
         virtualStatus: prev.setSinkIdSupported ? "inactive" : "unsupported",
         virtualError: null,
       }));
-      console.log("VoxFilter: setOutputDevice() cleared (default)");
+      console.log("VoxFilter: setOutputDevice() cleared (__system_default__)");
       return true;
     }
 

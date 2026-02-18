@@ -25,6 +25,8 @@ interface ElectronAPI {
   app: {
     getPlatform: () => Promise<NodeJS.Platform>;
     getVersion: () => Promise<string>;
+    openSoundSettings?: () => Promise<boolean>;
+    openExternal?: (url: string) => Promise<boolean>;
   };
 }
 

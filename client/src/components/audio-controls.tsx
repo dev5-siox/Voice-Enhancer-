@@ -479,14 +479,16 @@ export function AudioControls({
           </CardHeader>
           <CardContent>
             <Select
-              value={settings.inputDeviceId || "default"}
-              onValueChange={(value) => onSettingsChange({ inputDeviceId: value === "default" ? undefined : value })}
+              value={settings.inputDeviceId ?? "__auto__"}
+              onValueChange={(value) =>
+                onSettingsChange({ inputDeviceId: value === "__auto__" ? undefined : value })
+              }
             >
               <SelectTrigger data-testid="select-input-device">
                 <SelectValue placeholder="Select microphone" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="default">Auto-detect Physical Microphone</SelectItem>
+                <SelectItem value="__auto__">Auto-detect Physical Microphone</SelectItem>
                 {inputDevices.map((device) => {
                   const isVirtual = isVirtualCableLabel(device.label);
                   return (
@@ -576,7 +578,7 @@ export function AudioControls({
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Route processed audio to:</Label>
                   <Select
-                    value={outputDeviceId || "default"}
+                    value={outputDeviceId ?? "__system_default__"}
                     onValueChange={async (value) => {
                       await onSetOutputDevice(value);
                     }}
@@ -585,7 +587,7 @@ export function AudioControls({
                       <SelectValue placeholder="Select output device" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="default">System Default (Speakers)</SelectItem>
+                      <SelectItem value="__system_default__">System Default (Speakers)</SelectItem>
                       {outputDevices.map((device) => {
                         const isVirtualCable = device.label.toLowerCase().includes('cable') || 
                                                device.label.toLowerCase().includes('blackhole') ||
@@ -624,7 +626,7 @@ export function AudioControls({
                 ) : (
                   <>
                     <Cable className="w-4 h-4 mr-2" />
-                    {outputDeviceId && outputDeviceId !== "default" ? "Enable Audio Output" : "Enable Monitor (hear processed audio)"}
+                    {outputDeviceId ? "Enable Audio Output" : "Enable Monitor (hear processed audio)"}
                   </>
                 )}
               </Button>

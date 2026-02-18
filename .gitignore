@@ -19,3 +19,7 @@ data/memory-storage.json
 # Electron build outputs
 release/
 electron/dist/
+
+# Local environment files
+.env
+.env.*

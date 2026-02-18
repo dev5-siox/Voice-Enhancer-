@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { Mic, Users, Settings, Activity, BookOpen } from "lucide-react";
+import { Mic, Users, Activity, BookOpen, Cable } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,12 @@ const menuItems = [
     description: "Audio processing settings",
   },
   {
+    title: "Call App Setup",
+    url: "/guide#setup",
+    icon: Cable,
+    description: "RingCentral/Zoom/Teams setup",
+  },
+  {
     title: "Team Monitor",
     url: "/admin",
     icon: Users,
@@ -40,7 +46,8 @@ export function AppSidebar() {
   const { appVersion } = useElectron();
 
   const formatVersionLabel = (version: string | null) => {
-    const raw = (version ?? __APP_VERSION__ ?? "").trim();
+    const buildVersion = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
+    const raw = (version ?? buildVersion ?? "").trim();
     const m = raw.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
     if (!m) return raw ? `V${raw}` : "V1.00";
     const major = Number(m[1]);

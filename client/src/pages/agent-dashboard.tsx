@@ -349,9 +349,25 @@ export default function AgentDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <SetupWizard 
+              settings={settings}
+              onSettingsChange={handleSettingsChange}
+              isInitialized={audioProcessor.isInitialized}
               isProcessing={audioProcessor.isProcessing}
               inputLevel={audioProcessor.inputLevel}
               outputLevel={audioProcessor.outputLevel}
+              devices={audioProcessor.devices}
+              outputDeviceId={audioProcessor.outputDeviceId}
+              setSinkIdSupported={audioProcessor.setSinkIdSupported}
+              isVirtualOutputEnabled={audioProcessor.isVirtualOutputEnabled}
+              virtualStatus={audioProcessor.virtualStatus}
+              virtualError={audioProcessor.virtualError}
+              onInitialize={handleInitialize}
+              onRefreshDevices={audioProcessor.refreshDevices}
+              onSetOutputDevice={audioProcessor.setOutputDevice}
+              onEnableOutput={audioProcessor.enableOutput}
+              onRunSelfTest={audioProcessor.runSelfTest}
+              selfTestReport={audioProcessor.selfTestReport}
+              isSelfTesting={audioProcessor.isSelfTesting}
             />
             <StatusBadge status={agentStatus} size="md" />
           </div>

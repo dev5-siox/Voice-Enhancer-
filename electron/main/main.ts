@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session } from 'electron';
+import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { AudioDeviceManager } from '../audio/device-manager.js';
@@ -19,6 +19,63 @@ let serverPort: number | null = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const SERVER_PORT = 5000;
 const SERVER_HOST = '127.0.0.1';
+
+function parseDotEnv(contents: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of contents.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    // Strip matching quotes
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (key) out[key] = value;
+  }
+  return out;
+}
+
+function loadExternalEnvIfPresent(): void {
+  // Optional, "temporary" local override:
+  // If a `.env` file is found next to the installed .exe (or in userData), load it.
+  // Removing the file reverts behavior to defaults/in-memory storage.
+  const candidates: string[] = [];
+  try {
+    candidates.push(path.join(path.dirname(process.execPath), '.env'));
+  } catch {
+    // ignore
+  }
+  try {
+    candidates.push(path.join(app.getPath('userData'), '.env'));
+  } catch {
+    // ignore
+  }
+
+  for (const envPath of candidates) {
+    try {
+      if (!fs.existsSync(envPath)) continue;
+      const parsed = parseDotEnv(fs.readFileSync(envPath, 'utf-8'));
+      for (const [k, v] of Object.entries(parsed)) {
+        // Do not override env already provided by OS/shell.
+        if (process.env[k] === undefined) process.env[k] = v;
+      }
+      console.log('VoxFilter: loaded external env', {
+        path: envPath,
+        keys: Object.keys(parsed).filter((k) => k !== 'DATABASE_URL'),
+        hasDatabaseUrl: typeof parsed.DATABASE_URL === 'string' && parsed.DATABASE_URL.length > 0,
+      });
+      break;
+    } catch (e) {
+      console.warn('VoxFilter: failed to load external env (continuing):', { path: envPath, error: e });
+    }
+  }
+}
 
 // Desktop app should not be blocked by autoplay policies.
 // (We still keep explicit "Enable Audio Output" UX in the renderer as a safety gate.)
@@ -109,6 +166,33 @@ function setupIpcHandlers(): void {
   ipcMain.handle('app:getVersion', async () => {
     return app.getVersion();
   });
+
+  ipcMain.handle('app:openSoundSettings', async () => {
+    try {
+      if (process.platform === 'win32') {
+        await shell.openExternal('ms-settings:sound');
+        return true;
+      }
+      // Best-effort fallback: open OS sound help page.
+      await shell.openExternal('https://support.microsoft.com/windows/fix-sound-problems-in-windows-73025246-b61c-40fb-671a-2535c7cd56c8');
+      return true;
+    } catch (error) {
+      console.error('app:openSoundSettings failed:', error);
+      return false;
+    }
+  });
+
+  ipcMain.handle('app:openExternal', async (_event, url: string) => {
+    try {
+      const u = new URL(url);
+      const allowed = new Set(['https:', 'http:', 'ms-settings:']);
+      if (!allowed.has(u.protocol)) return false;
+      await shell.openExternal(url);
+      return true;
+    } catch {
+      return false;
+    }
+  });
 }
 
 function sleep(ms: number) {
@@ -146,6 +230,8 @@ async function waitForServerReady(url: string, maxAttempts = 60): Promise<boolea
 
 async function startServer(): Promise<{ port: number }> {
   if (serverStarted && serverPort) return { port: serverPort };
+
+  loadExternalEnvIfPresent();
 
   const port = await getAvailablePort(SERVER_PORT);
   serverPort = port;

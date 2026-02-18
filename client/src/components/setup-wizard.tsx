@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { Check, ChevronRight, ExternalLink, HelpCircle, Volume2, Mic, Settings, AlertCircle, Circle } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Check, ChevronRight, ExternalLink, HelpCircle, Volume2, Mic, Settings, AlertCircle, Circle, Cable, RefreshCw, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { AudioSettings } from "@shared/schema";
+import type { OutputRouteStatus, SelfTestReport } from "@/hooks/use-audio-processor";
 import {
   Dialog,
   DialogContent,
@@ -16,11 +18,28 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { isRunningInElectron } from "@/hooks/use-electron";
 
 interface SetupWizardProps {
+  settings: AudioSettings;
+  onSettingsChange: (settings: Partial<AudioSettings>) => void;
+  isInitialized: boolean;
   isProcessing: boolean;
   inputLevel: number;
   outputLevel: number;
+  devices: Array<{ deviceId: string; label: string; kind: MediaDeviceKind }>;
+  outputDeviceId: string | null;
+  setSinkIdSupported: boolean | null;
+  isVirtualOutputEnabled: boolean;
+  virtualStatus: OutputRouteStatus;
+  virtualError: string | null;
+  onInitialize: () => Promise<void>;
+  onRefreshDevices: () => Promise<void>;
+  onSetOutputDevice: (deviceId: string) => Promise<boolean>;
+  onEnableOutput: (deviceId?: string) => Promise<boolean>;
+  onRunSelfTest: (opts?: { outputDeviceId?: string | null }) => Promise<SelfTestReport>;
+  selfTestReport: SelfTestReport | null;
+  isSelfTesting: boolean;
 }
 
 interface SetupStep {
@@ -162,10 +181,32 @@ const macSteps: SetupStep[] = [
   }
 ];
 
-export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWizardProps) {
+export function SetupWizard({
+  settings,
+  onSettingsChange,
+  isInitialized,
+  isProcessing,
+  inputLevel,
+  outputLevel,
+  devices,
+  outputDeviceId,
+  setSinkIdSupported,
+  isVirtualOutputEnabled,
+  virtualStatus,
+  virtualError,
+  onInitialize,
+  onRefreshDevices,
+  onSetOutputDevice,
+  onEnableOutput,
+  onRunSelfTest,
+  selfTestReport,
+  isSelfTesting,
+}: SetupWizardProps) {
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [platform, setPlatform] = useState<"windows" | "mac">("windows");
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
+  const [isAutoConfiguring, setIsAutoConfiguring] = useState(false);
+  const [autoConfigError, setAutoConfigError] = useState<string | null>(null);
 
   const steps = platform === "windows" ? windowsSteps : macSteps;
 
@@ -181,6 +222,29 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
 
   const allComplete = steps.every(step => completedSteps.has(step.id));
   const audioFlowing = isProcessing && inputLevel > 5 && outputLevel > 5;
+
+  const outputDevices = useMemo(() => devices.filter((d) => d.kind === "audiooutput"), [devices]);
+
+  const recommendedOutput = useMemo(() => {
+    const outputs = outputDevices;
+    if (platform === "windows") {
+      return outputs.find((d) => /cable\s*input/i.test(d.label) || /vb-audio/i.test(d.label));
+    }
+    return outputs.find((d) => /blackhole/i.test(d.label));
+  }, [outputDevices, platform]);
+
+  const selectedOutputLabel = useMemo(() => {
+    if (!outputDeviceId) return null;
+    const match = outputDevices.find((d) => d.deviceId === outputDeviceId);
+    return match?.label ?? null;
+  }, [outputDeviceId, outputDevices]);
+
+  const selectedLooksVirtual = useMemo(() => {
+    const l = (selectedOutputLabel ?? "").toLowerCase();
+    return l.includes("cable") || l.includes("vb-audio") || l.includes("blackhole") || l.includes("black hole");
+  }, [selectedOutputLabel]);
+
+  const callAppReady = Boolean(isVirtualOutputEnabled && selectedLooksVirtual);
 
   return (
     <Dialog>
@@ -260,6 +324,198 @@ export function SetupWizard({ isProcessing, inputLevel, outputLevel }: SetupWiza
                     </span>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick auto-config (detect + route to virtual cable) */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">One-click setup (recommended)</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    VoxFilter should use your <span className="font-medium">physical microphone</span> as input, then route processed audio to{" "}
+                    <span className="font-medium">{platform === "windows" ? "CABLE Input" : "BlackHole 2ch"}</span>. Your call app microphone should be{" "}
+                    <span className="font-medium">{platform === "windows" ? "CABLE Output" : "BlackHole 2ch"}</span>.
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={async () => {
+                    try {
+                      await onRefreshDevices();
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                  data-testid="button-wizard-refresh-devices"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {isRunningInElectron() && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await window.electronAPI?.app?.openSoundSettings?.();
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                    data-testid="button-open-windows-sound"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                    Open Windows sound settings
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const url =
+                      "https://support.ringcentral.com/phone-system/voice-user/desktop-app/audio-video-settings.html";
+                    if (isRunningInElectron()) {
+                      await window.electronAPI?.app?.openExternal?.(url);
+                    } else {
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                  data-testid="button-open-ringcentral-help"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                  RingCentral audio settings help
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={async () => {
+                    setIsAutoConfiguring(true);
+                    setAutoConfigError(null);
+                    try {
+                      // Ensure we don't accidentally use a virtual cable as VoxFilter input.
+                      onSettingsChange({ inputDeviceId: undefined });
+
+                      if (!isInitialized) {
+                        await onInitialize();
+                      }
+
+                      // Best-effort: unlock device labels (some browsers hide until mic permission).
+                      try {
+                        const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        tmp.getTracks().forEach((t) => t.stop());
+                      } catch {
+                        // ignore; user may still proceed with manual selection
+                      }
+
+                      await onRefreshDevices();
+
+                      // IMPORTANT: detect from the *latest* OS device list (labels can update after permission)
+                      // rather than relying on stale props from a prior render.
+                      const all = await navigator.mediaDevices.enumerateDevices();
+                      const outputs = all
+                        .filter((d) => d.kind === "audiooutput")
+                        .filter((d) => d.deviceId !== "default" && d.deviceId !== "communications");
+
+                      const wanted = platform === "windows"
+                        ? outputs.find((d) =>
+                            /cable\s*input/i.test(d.label) ||
+                            /vb-audio/i.test(d.label) ||
+                            (/cable/i.test(d.label) && /input/i.test(d.label))
+                          )
+                        : outputs.find((d) => /blackhole/i.test(d.label));
+
+                      const targetId = wanted?.deviceId ?? outputDeviceId ?? null;
+                      if (!targetId) {
+                        setAutoConfigError(
+                          platform === "windows"
+                            ? "VB-Audio CABLE Input was not detected. Install VB-CABLE, then restart VoxFilter and click Refresh devices."
+                            : "BlackHole was not detected. Install BlackHole, then restart VoxFilter and click Refresh devices."
+                        );
+                        return;
+                      }
+
+                      await onSetOutputDevice(targetId);
+                      const ok = await onEnableOutput(targetId);
+                      if (!ok) {
+                        setAutoConfigError(
+                          "Could not enable output routing. Check the 'Audio Output Routing' card for Blocked/Failed and re-try."
+                        );
+                      }
+                    } finally {
+                      setIsAutoConfiguring(false);
+                    }
+                  }}
+                  disabled={isAutoConfiguring}
+                  data-testid="button-wizard-auto-config"
+                >
+                  {isAutoConfiguring ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Configuring...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 mr-2" />
+                      Auto-configure routing
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={async () => {
+                    await onRunSelfTest({ outputDeviceId });
+                  }}
+                  disabled={isSelfTesting}
+                  data-testid="button-wizard-self-test"
+                >
+                  <Cable className="w-4 h-4 mr-2" />
+                  {isSelfTesting ? "Running self-test..." : "Run self-test (3s)"}
+                </Button>
+              </div>
+
+              {autoConfigError && (
+                <div className="text-xs p-3 rounded-md bg-amber-500/10 text-amber-800 dark:text-amber-200">
+                  {autoConfigError}
+                </div>
+              )}
+
+              {virtualError && (
+                <div className="text-xs p-3 rounded-md bg-destructive/10 text-destructive">
+                  {virtualError}
+                </div>
+              )}
+
+              <div className="text-xs text-muted-foreground flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1">
+                  <Cable className="w-3.5 h-3.5" />
+                  Virtual routing: <span className="font-medium">{virtualStatus}</span>
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  setSinkId: <span className="font-medium">{setSinkIdSupported ? "supported" : "unknown/unsupported"}</span>
+                </span>
+                {selectedOutputLabel && (
+                  <span className="inline-flex items-center gap-1">
+                    Output selected: <span className="font-medium truncate">{selectedOutputLabel}</span>
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1">
+                  Call app ready: <span className={`font-medium ${callAppReady ? "text-green-600 dark:text-green-400" : ""}`}>{callAppReady ? "YES" : "NO"}</span>
+                </span>
               </div>
             </CardContent>
           </Card>
