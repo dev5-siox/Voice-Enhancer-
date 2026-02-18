@@ -106,6 +106,10 @@ export function useAudioProcessor(settings: AudioSettings) {
   const noiseGateLoadedRef = useRef<boolean>(false);
   // Electron low-latency output path (avoids HTMLAudioElement buffering).
   const electronOutGainRef = useRef<GainNode | null>(null);
+  // Accent EQ (driven by accentPresetConfigs). This is separate from noise reduction EQ.
+  const accentHighPassRef = useRef<BiquadFilterNode | null>(null);
+  const accentLowPassRef = useRef<BiquadFilterNode | null>(null);
+  const accentResonanceRef = useRef<BiquadFilterNode | null>(null);
   const lowPassRef = useRef<BiquadFilterNode | null>(null);
   const highPassRef = useRef<BiquadFilterNode | null>(null);
   const notchFilterRef = useRef<BiquadFilterNode | null>(null);
@@ -239,6 +243,18 @@ export function useAudioProcessor(settings: AudioSettings) {
       if (electronOutGainRef.current) {
         electronOutGainRef.current.disconnect();
         electronOutGainRef.current = null;
+      }
+      if (accentResonanceRef.current) {
+        accentResonanceRef.current.disconnect();
+        accentResonanceRef.current = null;
+      }
+      if (accentHighPassRef.current) {
+        accentHighPassRef.current.disconnect();
+        accentHighPassRef.current = null;
+      }
+      if (accentLowPassRef.current) {
+        accentLowPassRef.current.disconnect();
+        accentLowPassRef.current = null;
       }
       if (formantFilter1Ref.current) {
         formantFilter1Ref.current.disconnect();
@@ -504,6 +520,27 @@ export function useAudioProcessor(settings: AudioSettings) {
         }
       }
 
+      // Accent EQ (preset-driven)
+      // These nodes are always present; when accent is disabled, they are set to neutral.
+      const accentResonance = audioContext.createBiquadFilter();
+      accentResonance.type = "peaking";
+      accentResonance.frequency.value = 1800;
+      accentResonance.Q.value = 0.7;
+      accentResonance.gain.value = 0;
+      accentResonanceRef.current = accentResonance;
+
+      const accentHighPass = audioContext.createBiquadFilter();
+      accentHighPass.type = "highpass";
+      accentHighPass.frequency.value = 20;
+      accentHighPass.Q.value = 0.7;
+      accentHighPassRef.current = accentHighPass;
+
+      const accentLowPass = audioContext.createBiquadFilter();
+      accentLowPass.type = "lowpass";
+      accentLowPass.frequency.value = 20000;
+      accentLowPass.Q.value = 0.7;
+      accentLowPassRef.current = accentLowPass;
+
       // === VOICE MODIFICATION CHAIN ===
       // Multiple formant filters for dramatic voice character shaping
       // F1 (300-800 Hz) - Controls warmth/body of voice
@@ -609,13 +646,18 @@ export function useAudioProcessor(settings: AudioSettings) {
       gainNode.connect(highPass);
       highPass.connect(notchFilter);
       notchFilter.connect(lowPass);
+      // Insert: noise gate (optional) -> accent EQ (always) -> voice chain
       const voiceStart = pitchShifterNode ?? voiceBodyFilter;
-      if (noiseGateNode) {
-        lowPass.connect(noiseGateNode);
-        noiseGateNode.connect(voiceStart);
+      const preAccent = noiseGateNode ? noiseGateNode : null;
+      if (preAccent) {
+        lowPass.connect(preAccent);
+        preAccent.connect(accentResonance);
       } else {
-        lowPass.connect(voiceStart);
+        lowPass.connect(accentResonance);
       }
+      accentResonance.connect(accentHighPass);
+      accentHighPass.connect(accentLowPass);
+      accentLowPass.connect(voiceStart);
 
       if (pitchShifterNode) {
         pitchShifterNode.connect(voiceBodyFilter);
@@ -788,10 +830,13 @@ export function useAudioProcessor(settings: AudioSettings) {
     const f2 = formantFilter2Ref.current;
     const f3 = formantFilter3Ref.current;
     const vb = voiceBodyFilterRef.current;
+    const aHP = accentHighPassRef.current;
+    const aLP = accentLowPassRef.current;
+    const aRes = accentResonanceRef.current;
     const hp = highPassRef.current;
     const lp = lowPassRef.current;
     
-    if (!f1 || !f2 || !f3 || !vb) {
+    if (!f1 || !f2 || !f3 || !vb || !aHP || !aLP || !aRes) {
       console.warn("VoxFilter: applyAccentSettings skipped (nodes not ready)");
       return;
     }
@@ -801,6 +846,15 @@ export function useAudioProcessor(settings: AudioSettings) {
       const formantShift = s.formantShift !== undefined ? s.formantShift : preset.formantShift;
       const pitchShift = s.pitchShift !== undefined ? s.pitchShift : preset.pitchShift;
       
+      // Apply preset-driven accent EQ (separate from noise reduction EQ)
+      // This makes "British/Australian" noticeably different even when formant shifts are subtle.
+      aHP.frequency.value = Math.max(20, Math.min(300, preset.highPassFreq));
+      aLP.frequency.value = Math.max(4000, Math.min(20000, preset.lowPassFreq));
+      aRes.Q.value = Math.max(0.2, Math.min(6, preset.resonanceQ));
+      // Resonance gain scaled by formant shift so presets remain consistent if user tweaks it.
+      const resGain = Math.max(-6, Math.min(6, (formantShift / 15) * 4));
+      aRes.gain.value = resGain;
+
       // Apply real pitch shifting via AudioWorklet
       if (pitchShifterNodeRef.current) {
         const pitchRatio = Math.pow(2, pitchShift / 12);
@@ -899,6 +953,12 @@ export function useAudioProcessor(settings: AudioSettings) {
         preset: s.accentPreset,
         formantShift,
         pitchShift,
+        accentEq: {
+          hpHz: Math.round(aHP.frequency.value),
+          lpHz: Math.round(aLP.frequency.value),
+          resQ: Number(aRes.Q.value.toFixed(2)),
+          resGainDb: Number(aRes.gain.value.toFixed(2)),
+        },
         f1: { type: f1.type, freqHz: Math.round(f1.frequency.value), gainDb: Number(f1.gain.value.toFixed(2)) },
         f2: { type: f2.type, freqHz: Math.round(f2.frequency.value), gainDb: Number(f2.gain.value.toFixed(2)) },
         f3: { type: f3.type, freqHz: Math.round(f3.frequency.value), gainDb: Number(f3.gain.value.toFixed(2)) },
@@ -937,6 +997,14 @@ export function useAudioProcessor(settings: AudioSettings) {
       // Reset pitch shifter to normal
       if (pitchShifterNodeRef.current) {
         pitchShifterNodeRef.current.port.postMessage({ type: 'setPitchRatio', value: 1.0 });
+      }
+
+      // Reset accent EQ to neutral (do not touch noise reduction EQ)
+      if (accentHighPassRef.current) accentHighPassRef.current.frequency.value = 20;
+      if (accentLowPassRef.current) accentLowPassRef.current.frequency.value = 20000;
+      if (accentResonanceRef.current) {
+        accentResonanceRef.current.Q.value = 0.7;
+        accentResonanceRef.current.gain.value = 0;
       }
       
       console.log("VoxFilter: accent disabled");

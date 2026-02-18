@@ -627,7 +627,7 @@ export default function UserGuide() {
 
       <Separator />
       <p className="text-xs text-muted-foreground text-center pb-8">
-        VoxFilter {typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__ ? `v${__APP_VERSION__}` : "v1.0.2"} - Audio Processing for Sales Teams
+        VoxFilter {typeof __APP_VERSION__ !== "undefined" && __APP_VERSION__ ? `v${__APP_VERSION__}` : "v1.0.3"} - Audio Processing for Sales Teams
       </p>
     </div>
   );
