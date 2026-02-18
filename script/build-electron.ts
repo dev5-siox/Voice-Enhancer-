@@ -24,6 +24,8 @@ async function buildElectron() {
     }
     
     await execAsync('npx tsc -p electron/tsconfig.json');
+    // Preload must be CommonJS even when app uses ESM ("type": "module").
+    await execAsync('npx esbuild electron/preload/preload.ts --bundle --platform=node --format=cjs --outfile=electron/dist/preload/preload.cjs --external:electron');
     console.log('   ✓ Electron compiled successfully\n');
   } catch (error) {
     console.error('   ✗ Electron compilation failed:', error);

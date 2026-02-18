@@ -10,6 +10,10 @@ const app = express();
 app.set('trust proxy', 1);
 const httpServer = createServer(app);
 
+// Expose server handle so the Electron main process can stop it on quit when running embedded.
+// (Safe in normal runs; no-op unless Electron reads this global.)
+(globalThis as any).__voxfilterHttpServer = httpServer;
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -116,7 +120,8 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(port, "0.0.0.0", () => {
+  const host = process.env.HOST || "0.0.0.0";
+  httpServer.listen(port, host, () => {
     log(`serving on port ${port}`);
   });
 })();
