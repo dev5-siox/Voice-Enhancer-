@@ -65,10 +65,10 @@ Do **not** commit `.exe`/`.dmg` binaries into git. Instead, distribute via:
 
 ### GitHub Releases (public download link)
 
-Push a tag like `desktop-v1.0.0` and GitHub Actions will build and attach:
+Push a tag like `desktop-v1.0.1` and GitHub Actions will build and attach:
 
-- `VoxFilter-1.0.0-Windows.exe`
-- `VoxFilter-1.0.0-Windows.exe.blockmap`
+- `VoxFilter-1.0.1-Windows.exe`
+- `VoxFilter-1.0.1-Windows.exe.blockmap`
 
 to a Release. Users can download from the Release page.
 
