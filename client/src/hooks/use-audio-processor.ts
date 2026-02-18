@@ -1080,73 +1080,6 @@ export function useAudioProcessor(settings: AudioSettings) {
       const electronApi = typeof window !== "undefined" ? (window as any).electronAPI : null;
       const canSetAppOutputDevice = typeof electronApi?.audio?.setAppOutputDevice === "function";
 
-      // Electron desktop path: use webContents.setAudioOutputDevice() (native) + a single playback element.
-      // This avoids relying on setSinkId support and is generally more reliable than browser routing.
-      if (canSetAppOutputDevice && !!deviceId) {
-        const targetDeviceId = deviceId ?? null;
-        const out = audioOutputRef.current ?? new Audio();
-        audioOutputRef.current = out;
-        out.srcObject = processedStreamRef.current;
-
-        const setSinkIdSupported = typeof (out as any)?.setSinkId === "function";
-        let virtualEnabled = false;
-        let virtualStatus: OutputRouteStatus = "inactive";
-        let virtualError: string | null = null;
-
-        if (!targetDeviceId) {
-          virtualStatus = "failed";
-          virtualError = "Select a virtual cable output device (VB-Audio CABLE Input / BlackHole) first.";
-        } else {
-          try {
-            const ok = await electronApi.audio.setAppOutputDevice(targetDeviceId);
-            if (!ok) throw new Error("setAppOutputDevice returned false");
-            console.log("VoxFilter: electron setAudioOutputDevice OK", { deviceId: targetDeviceId });
-          } catch (e) {
-            virtualStatus = "failed";
-            virtualError = "Desktop output routing failed. See console for details.";
-            console.error("VoxFilter: electron setAudioOutputDevice failed:", e);
-          }
-
-          if (virtualStatus !== "failed") {
-            try {
-              await out.play();
-              virtualEnabled = true;
-              virtualStatus = "active";
-            } catch (e) {
-              const name = (e as any)?.name;
-              virtualStatus = name === "NotAllowedError" ? "blocked" : "failed";
-              virtualError =
-                name === "NotAllowedError"
-                  ? "Playback blocked. Try again, then allow audio output if prompted."
-                  : "Virtual output playback failed. See console for details.";
-              console.error("VoxFilter: electron virtual play() failed:", e);
-            }
-          }
-        }
-
-        setState((prev) => ({
-          ...prev,
-          setSinkIdSupported,
-          isMonitorEnabled: false,
-          monitorStatus: "inactive",
-          monitorError: null,
-          isVirtualOutputEnabled: virtualEnabled,
-          virtualStatus,
-          virtualError,
-          // Back-compat: this flag now means "virtual cable routing is active"
-          isOutputEnabled: virtualEnabled,
-          outputDeviceId: targetDeviceId,
-        }));
-
-        console.log("VoxFilter: enableOutput() result", {
-          mode: "electron",
-          virtual: { enabled: virtualEnabled, status: virtualStatus, deviceId: targetDeviceId },
-          setSinkIdSupported,
-        });
-
-        return virtualEnabled;
-      }
-
       // 1) Local monitor (optional): lets the user hear processed audio.
       let monitorEnabled = false;
       let monitorStatus: OutputRouteStatus = "inactive";
@@ -1179,28 +1112,63 @@ export function useAudioProcessor(settings: AudioSettings) {
       let virtualEnabled = false;
       let virtualStatus: OutputRouteStatus = setSinkIdSupported ? "inactive" : "unsupported";
       let virtualError: string | null = null;
+      let routingMode: "electron" | "setSinkId" | null = null;
 
       if (!targetDeviceId) {
         virtualStatus = "failed";
         virtualError = "Select a virtual cable output device (VB-Audio CABLE Input / BlackHole) first.";
-      } else if (!setSinkIdSupported) {
-        virtualStatus = "unsupported";
-        virtualError = "Your browser does not support output device routing (setSinkId). Use Chrome/Edge on https/localhost.";
       } else {
-        try {
-          await (out as any).setSinkId(targetDeviceId);
-          console.log("VoxFilter: setSinkId OK", { deviceId: targetDeviceId });
-        } catch (e) {
-          virtualStatus = "failed";
-          virtualError = "Failed to set output device (setSinkId). See console for details.";
-          console.error("VoxFilter: setSinkId failed:", e);
+        // Prefer Electron-native routing when available, but fall back to setSinkId.
+        // This prevents Electron `setAudioOutputDevice` failures from hard-blocking output routing when
+        // Chromium `setSinkId` would still work (common on some Windows setups).
+        let routed = false;
+        let lastRouteError: unknown = null;
+
+        if (canSetAppOutputDevice) {
+          try {
+            const ok = await electronApi.audio.setAppOutputDevice(targetDeviceId);
+            if (!ok) throw new Error("setAppOutputDevice returned false");
+            routed = true;
+            routingMode = "electron";
+            console.log("VoxFilter: electron setAudioOutputDevice OK", { deviceId: targetDeviceId });
+          } catch (e) {
+            lastRouteError = e;
+            console.warn("VoxFilter: electron setAudioOutputDevice failed; trying setSinkId fallback:", e);
+          }
         }
 
-        if (virtualStatus !== "failed") {
+        if (!routed && setSinkIdSupported) {
+          try {
+            await (out as any).setSinkId(targetDeviceId);
+            routed = true;
+            routingMode = "setSinkId";
+            console.log("VoxFilter: setSinkId OK", { deviceId: targetDeviceId });
+          } catch (e) {
+            lastRouteError = e;
+            virtualStatus = "failed";
+            virtualError = "Failed to set output device (setSinkId). See console for details.";
+            console.error("VoxFilter: setSinkId failed:", e);
+          }
+        }
+
+        if (!routed && !setSinkIdSupported && virtualStatus !== "failed") {
+          virtualStatus = "unsupported";
+          virtualError =
+            "Your environment does not support output device routing (setSinkId). Use Chrome/Edge on https/localhost.";
+        }
+
+        if (!routed && virtualStatus !== "failed" && virtualStatus !== "unsupported") {
+          virtualStatus = "failed";
+          virtualError = "Desktop output routing failed. See console for details.";
+          console.error("VoxFilter: output routing failed:", lastRouteError);
+        }
+
+        if (virtualStatus !== "failed" && virtualStatus !== "unsupported") {
           try {
             await out.play();
             virtualEnabled = true;
             virtualStatus = "active";
+            virtualError = null;
           } catch (e) {
             const name = (e as any)?.name;
             virtualStatus = name === "NotAllowedError" ? "blocked" : "failed";
@@ -1229,7 +1197,7 @@ export function useAudioProcessor(settings: AudioSettings) {
 
       console.log("VoxFilter: enableOutput() result", {
         monitor: { enabled: monitorEnabled, status: monitorStatus },
-        virtual: { enabled: virtualEnabled, status: virtualStatus, deviceId: targetDeviceId },
+        virtual: { enabled: virtualEnabled, status: virtualStatus, deviceId: targetDeviceId, routingMode },
         setSinkIdSupported,
       });
 

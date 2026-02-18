@@ -12,6 +12,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { useElectron } from "@/hooks/use-electron";
 
 const menuItems = [
   {
@@ -36,6 +37,20 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { appVersion } = useElectron();
+
+  const formatVersionLabel = (version: string | null) => {
+    const raw = (version ?? __APP_VERSION__ ?? "").trim();
+    const m = raw.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/);
+    if (!m) return raw ? `V${raw}` : "V1.00";
+    const major = Number(m[1]);
+    const minor = Number(m[2]);
+    const patch = Number(m[3]);
+    if (minor === 0 && patch < 100) {
+      return `V${major}.${String(patch).padStart(2, "0")}`; // 1.0.1 -> V1.01
+    }
+    return `V${major}.${minor}.${patch}`;
+  };
 
   return (
     <Sidebar>
@@ -78,7 +93,7 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         <div className="text-xs text-muted-foreground">
           <p>Call App Companion</p>
-          <p className="mt-1">v1.0.0</p>
+          <p className="mt-1">{formatVersionLabel(appVersion)}</p>
         </div>
       </SidebarFooter>
     </Sidebar>
