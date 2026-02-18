@@ -63,6 +63,17 @@ const windowsSteps: SetupStep[] = [
     externalLink: { url: "https://github.com/herrychokshi-ops/VoxFilter-Downloads/releases/latest", label: "Download VoxFilter Desktop (.exe)" }
   },
   {
+    id: "windows-default-devices",
+    title: "Set Windows default audio devices (important)",
+    description: "Keep your PC defaults on your headset/mic (not the virtual cable)",
+    details: [
+      "Windows Settings → System → Sound",
+      "Output (Default): set to your real speakers/headset (e.g., Logi USB Headset)",
+      "Input (Default): set to your real microphone/headset mic",
+      "Do NOT set Windows default input/output to CABLE Input/CABLE Output"
+    ],
+  },
+  {
     id: "install",
     title: "Install VB-Audio Virtual Cable",
     description: "Download and install the free virtual audio cable software",
@@ -94,7 +105,8 @@ const windowsSteps: SetupStep[] = [
       "Open your call app (RingCentral/Zoom/Teams/Meet/etc)",
       "Go to Settings → Audio",
       "Set Microphone to 'CABLE Output (VB-Audio Virtual Cable)'",
-      "Set Speaker to your headphones (so you hear callers)"
+      "Set Speaker to your headphones (so you hear callers)",
+      "Turn OFF 'Automatically adjust my mic level' and 'Remove my background noise' (let VoxFilter handle it)"
     ]
   },
   {

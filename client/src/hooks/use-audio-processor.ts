@@ -102,7 +102,10 @@ export function useAudioProcessor(settings: AudioSettings) {
   const gainNodeRef = useRef<GainNode | null>(null);
   const outputGainNodeRef = useRef<GainNode | null>(null);
   const analyserNodeRef = useRef<AnalyserNode | null>(null);
-  const noiseGateRef = useRef<DynamicsCompressorNode | null>(null);
+  const noiseGateNodeRef = useRef<AudioWorkletNode | null>(null);
+  const noiseGateLoadedRef = useRef<boolean>(false);
+  // Electron low-latency output path (avoids HTMLAudioElement buffering).
+  const electronOutGainRef = useRef<GainNode | null>(null);
   const lowPassRef = useRef<BiquadFilterNode | null>(null);
   const highPassRef = useRef<BiquadFilterNode | null>(null);
   const notchFilterRef = useRef<BiquadFilterNode | null>(null);
@@ -229,9 +232,13 @@ export function useAudioProcessor(settings: AudioSettings) {
         notchFilterRef.current.disconnect();
         notchFilterRef.current = null;
       }
-      if (noiseGateRef.current) {
-        noiseGateRef.current.disconnect();
-        noiseGateRef.current = null;
+      if (noiseGateNodeRef.current) {
+        noiseGateNodeRef.current.disconnect();
+        noiseGateNodeRef.current = null;
+      }
+      if (electronOutGainRef.current) {
+        electronOutGainRef.current.disconnect();
+        electronOutGainRef.current = null;
       }
       if (formantFilter1Ref.current) {
         formantFilter1Ref.current.disconnect();
@@ -387,7 +394,9 @@ export function useAudioProcessor(settings: AudioSettings) {
         audio: {
           deviceId: selectedInputDeviceId ? { exact: selectedInputDeviceId } : undefined,
           echoCancellation: true,
-          noiseSuppression: false, // We handle this ourselves
+          // Let the browser do its best (AEC/NS) and then apply our own gating/EQ.
+          // This helps a lot with steady ambient noise.
+          noiseSuppression: Boolean(settingsRef.current.noiseReductionEnabled),
           autoGainControl: false, // We handle this ourselves
           sampleRate: 48000,
         },
@@ -475,14 +484,25 @@ export function useAudioProcessor(settings: AudioSettings) {
       lowPass.Q.value = 0.7;
       lowPassRef.current = lowPass;
 
-      // Dynamics compressor for noise gate effect
-      const noiseGate = audioContext.createDynamicsCompressor();
-      noiseGate.threshold.value = -50;
-      noiseGate.knee.value = 40;
-      noiseGate.ratio.value = 12;
-      noiseGate.attack.value = 0.003;
-      noiseGate.release.value = 0.25;
-      noiseGateRef.current = noiseGate;
+      // Noise gate (AudioWorklet): reduces background noise between speech
+      let noiseGateNode: AudioWorkletNode | null = null;
+      if (!noiseGateLoadedRef.current) {
+        try {
+          await audioContext.audioWorklet.addModule("/noise-gate-processor.js");
+          noiseGateLoadedRef.current = true;
+          console.log("VoxFilter: AudioWorklet noise-gate loaded");
+        } catch (err) {
+          console.warn("VoxFilter: AudioWorklet noise-gate failed to load (continuing):", err);
+        }
+      }
+      if (noiseGateLoadedRef.current) {
+        try {
+          noiseGateNode = new AudioWorkletNode(audioContext, "noise-gate-processor");
+          noiseGateNodeRef.current = noiseGateNode;
+        } catch (err) {
+          console.warn("VoxFilter: noise-gate node creation failed (continuing):", err);
+        }
+      }
 
       // === VOICE MODIFICATION CHAIN ===
       // Multiple formant filters for dramatic voice character shaping
@@ -552,6 +572,14 @@ export function useAudioProcessor(settings: AudioSettings) {
       destinationRef.current = destination;
       processedStreamRef.current = destination.stream;
 
+      // Electron low-latency output: connect to AudioContext destination (system output),
+      // and let Electron route the window audio output to the selected device.
+      // Start muted; `enableOutput()` will unmute when using Electron routing mode.
+      const electronOutGain = audioContext.createGain();
+      electronOutGain.gain.value = 0;
+      electronOutGainRef.current = electronOutGain;
+      electronOutGain.connect(audioContext.destination);
+
       // Load AudioWorklet pitch shifter
       let pitchShifterNode: AudioWorkletNode | null = null;
       if (!pitchShifterLoadedRef.current) {
@@ -575,19 +603,22 @@ export function useAudioProcessor(settings: AudioSettings) {
       }
 
       // Connect the full audio processing chain
-      // Source -> Input Gain -> High Pass -> Notch -> Low Pass -> Noise Gate -> 
+      // Source -> Input Gain -> High Pass -> Notch -> Low Pass -> Noise Gate ->
       // Pitch Shifter -> Voice Body -> F1 -> F2 -> F3 -> Clarity Filter -> Normalizer -> Output Gain -> Analyser -> Destination
       source.connect(gainNode);
       gainNode.connect(highPass);
       highPass.connect(notchFilter);
       notchFilter.connect(lowPass);
-      lowPass.connect(noiseGate);
-      
-      if (pitchShifterNode) {
-        noiseGate.connect(pitchShifterNode);
-        pitchShifterNode.connect(voiceBodyFilter);
+      const voiceStart = pitchShifterNode ?? voiceBodyFilter;
+      if (noiseGateNode) {
+        lowPass.connect(noiseGateNode);
+        noiseGateNode.connect(voiceStart);
       } else {
-        noiseGate.connect(voiceBodyFilter);
+        lowPass.connect(voiceStart);
+      }
+
+      if (pitchShifterNode) {
+        pitchShifterNode.connect(voiceBodyFilter);
       }
       
       voiceBodyFilter.connect(formantFilter1);
@@ -596,8 +627,10 @@ export function useAudioProcessor(settings: AudioSettings) {
       formantFilter3.connect(clarityFilter);
       clarityFilter.connect(normalizer);
       normalizer.connect(outputGain);
+      // Split: meter via analyser, stream via destination, and optional low-latency Electron output via electronOutGain.
       outputGain.connect(analyser);
       analyser.connect(destination);
+      outputGain.connect(electronOutGain);
 
       // Apply initial settings
       applyNoiseReductionSettings(settingsRef.current);
@@ -678,19 +711,52 @@ export function useAudioProcessor(settings: AudioSettings) {
 
   // Apply noise reduction settings
   const applyNoiseReductionSettings = useCallback((s: AudioSettings) => {
-    if (highPassRef.current && lowPassRef.current && noiseGateRef.current && notchFilterRef.current) {
+    if (highPassRef.current && lowPassRef.current && notchFilterRef.current) {
+      // Best-effort: toggle browser-level noise suppression at the capture layer.
+      // This can significantly reduce steady ambient noise; support varies by OS/driver.
+      try {
+        const t = streamRef.current?.getAudioTracks?.()?.[0];
+        if (t?.applyConstraints) {
+          void t.applyConstraints({
+            noiseSuppression: Boolean(s.noiseReductionEnabled),
+            autoGainControl: false,
+          } as any);
+        }
+      } catch {
+        // ignore
+      }
+
       if (s.noiseReductionEnabled) {
         const intensity = s.noiseReductionLevel / 100;
         
-        // Adjust high-pass frequency (cut more low rumble as intensity increases)
-        highPassRef.current.frequency.value = 80 + intensity * 120; // 80-200 Hz
+        // Keep EQ gentle: aggressive band-limiting can make background voices more noticeable.
+        // High-pass: tame rumble without thinning speech too much.
+        highPassRef.current.frequency.value = 60 + intensity * 60; // 60-120 Hz
         
-        // Adjust low-pass frequency (cut more high hiss as intensity increases)
-        lowPassRef.current.frequency.value = 8000 - intensity * 3000; // 8000-5000 Hz
+        // Low-pass: only shave off hiss (keep speech brightness).
+        lowPassRef.current.frequency.value = 16000 - intensity * 4000; // 16000-12000 Hz
         
-        // Adjust noise gate threshold (more aggressive as intensity increases)
-        noiseGateRef.current.threshold.value = -50 + intensity * 25; // -50 to -25 dB
-        noiseGateRef.current.ratio.value = 12 + intensity * 8; // 12:1 to 20:1
+        // Configure noise gate (reduces background noise between speech)
+        if (noiseGateNodeRef.current) {
+          // For ambient + distant voices: higher intensity = higher threshold + more attenuation.
+          // This can suppress quieter background talkers, but won't remove loud voices.
+          const thresholdDb = -58 + intensity * 26; // -58..-32 dBFS
+          const reductionDb = 12 + intensity * 36; // 12..48 dB attenuation
+          const hysteresisDb = 6; // prevent pumping/chatter
+          const attackMs = 4 + intensity * 6; // 4..10ms
+          const releaseMs = 140 + intensity * 220; // 140..360ms
+          const holdMs = 70 + intensity * 120; // 70..190ms
+          noiseGateNodeRef.current.port.postMessage({
+            type: "set",
+            enabled: true,
+            thresholdDb,
+            hysteresisDb,
+            reductionDb,
+            attackMs,
+            releaseMs,
+            holdMs,
+          });
+        }
         
         // Enable notch filter for 60Hz hum
         notchFilterRef.current.Q.value = 30;
@@ -698,8 +764,9 @@ export function useAudioProcessor(settings: AudioSettings) {
         // Bypass mode - minimal filtering
         highPassRef.current.frequency.value = 20;
         lowPassRef.current.frequency.value = 20000;
-        noiseGateRef.current.threshold.value = -100;
-        noiseGateRef.current.ratio.value = 1;
+        if (noiseGateNodeRef.current) {
+          noiseGateNodeRef.current.port.postMessage({ type: "set", enabled: false });
+        }
         notchFilterRef.current.Q.value = 0.01;
       }
 
@@ -709,8 +776,7 @@ export function useAudioProcessor(settings: AudioSettings) {
         level: s.noiseReductionLevel,
         hpHz: Math.round(highPassRef.current.frequency.value),
         lpHz: Math.round(lowPassRef.current.frequency.value),
-        gateThresholdDb: Number(noiseGateRef.current.threshold.value.toFixed(2)),
-        gateRatio: Number(noiseGateRef.current.ratio.value.toFixed(2)),
+        gate: noiseGateNodeRef.current ? "audioWorklet" : "unavailable",
         notchQ: Number(notchFilterRef.current.Q.value.toFixed(2)),
       });
     }
@@ -1148,7 +1214,7 @@ export function useAudioProcessor(settings: AudioSettings) {
         }
       }
 
-      // 2) Virtual cable output (for call apps): must set sink + play.
+      // 2) Virtual cable output (for call apps).
       const targetDeviceId = deviceId ?? null;
       const out = audioOutputRef.current ?? new Audio();
       audioOutputRef.current = out;
@@ -1183,7 +1249,23 @@ export function useAudioProcessor(settings: AudioSettings) {
           }
         }
 
-        if (!routed && setSinkIdSupported) {
+        // If we can route the Electron window output, prefer the low-latency WebAudio output path.
+        if (routed && routingMode === "electron") {
+          try {
+            if (electronOutGainRef.current) {
+              electronOutGainRef.current.gain.value = 1;
+            }
+            virtualEnabled = true;
+            virtualStatus = "active";
+            virtualError = null;
+          } catch (e) {
+            virtualStatus = "failed";
+            virtualError = "Electron output routing activated, but audio output path failed. See console.";
+            console.error("VoxFilter: electron low-latency output failed:", e);
+          }
+        }
+
+        if (!virtualEnabled && !routed && setSinkIdSupported) {
           try {
             await (out as any).setSinkId(targetDeviceId);
             routed = true;
@@ -1209,7 +1291,7 @@ export function useAudioProcessor(settings: AudioSettings) {
           console.error("VoxFilter: output routing failed:", lastRouteError);
         }
 
-        if (virtualStatus !== "failed" && virtualStatus !== "unsupported") {
+        if (!virtualEnabled && virtualStatus !== "failed" && virtualStatus !== "unsupported") {
           try {
             await out.play();
             virtualEnabled = true;
@@ -1277,6 +1359,11 @@ export function useAudioProcessor(settings: AudioSettings) {
     if (audioOutputRef.current) {
       audioOutputRef.current.pause();
       audioOutputRef.current.srcObject = null;
+    }
+
+    // Mute Electron low-latency output path (if active)
+    if (electronOutGainRef.current) {
+      electronOutGainRef.current.gain.value = 0;
     }
     
     setState((prev) => ({

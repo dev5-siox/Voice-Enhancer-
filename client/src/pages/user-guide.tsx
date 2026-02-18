@@ -470,12 +470,22 @@ export default function UserGuide() {
                 <p className="text-sm text-muted-foreground">Download from <a href="https://vb-audio.com/Cable/" target="_blank" rel="noopener noreferrer" className="text-primary underline">vb-audio.com/Cable</a> (free). Run as Administrator and restart your computer.</p>
               </div>
               <div>
+                <h4 className="font-medium text-sm">Step 1.5: Set Windows default input/output (important)</h4>
+                <p className="text-sm text-muted-foreground">
+                  In Windows Settings → System → Sound, keep <strong>Output</strong> set to your real speakers/headset and <strong>Input</strong> set to your real microphone.
+                  Do <strong>not</strong> set Windows defaults to <strong>CABLE Input</strong>/<strong>CABLE Output</strong>.
+                </p>
+              </div>
+              <div>
                 <h4 className="font-medium text-sm">Step 2: Configure VoxFilter Output Routing (recommended)</h4>
                 <p className="text-sm text-muted-foreground">In VoxFilter, start audio processing, then in <strong>Audio Output Routing</strong> select <strong>CABLE Input (VB-Audio Virtual Cable)</strong> and click <strong>Enable Audio Output</strong>. Optional: run <strong>Test Processed Audio (3s)</strong>.</p>
               </div>
               <div>
                 <h4 className="font-medium text-sm">Step 3: Configure your call app</h4>
-                <p className="text-sm text-muted-foreground">In your call app's Audio settings, set <strong>Microphone</strong> to <strong>CABLE Output (VB-Audio Virtual Cable)</strong>. Keep <strong>Speaker</strong> as your headphones/speakers (not the cable).</p>
+                <p className="text-sm text-muted-foreground">
+                  In your call app's Audio settings, set <strong>Microphone</strong> to <strong>CABLE Output (VB-Audio Virtual Cable)</strong>. Keep <strong>Speaker</strong> as your headphones/speakers (not the cable).
+                  In RingCentral, turn off <strong>Automatically adjust my mic level</strong> and <strong>Remove my background noise</strong> to avoid conflicting processing.
+                </p>
               </div>
               <div>
                 <h4 className="font-medium text-sm">Step 4: Configure VoxFilter</h4>
