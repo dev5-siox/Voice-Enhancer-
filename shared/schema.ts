@@ -71,6 +71,8 @@ export const audioSettingsSchema = z.object({
     // Voice character
     "authoritative", "friendly", "calm", "energetic", "confident", "professional"
   ]).default("neutral"),
+  // Pitch shifting can introduce metallic artifacts; keep it opt-in.
+  pitchShiftEnabled: z.boolean().default(false),
   pitchShift: z.number().min(-12).max(12).default(0),
   formantShift: z.number().min(-50).max(50).default(0),
   inputDeviceId: z.string().optional(),
@@ -209,6 +211,7 @@ export const defaultAudioSettings: AudioSettings = {
   noiseReductionLevel: 50,
   accentModifierEnabled: false,
   accentPreset: "neutral",
+  pitchShiftEnabled: false,
   pitchShift: 0,
   formantShift: 0,
   inputDeviceId: undefined,

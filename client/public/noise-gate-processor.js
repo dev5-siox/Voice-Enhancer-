@@ -3,25 +3,24 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
     super();
     this.enabled = false;
     this.thresholdDb = -55;
-    this.hysteresisDb = 6;
-    this.reductionDb = 18;
+    // Soft expander controls (transparent noise reduction; avoids "breaking" speech).
+    this.kneeDb = 10;
+    this.ratio = 2.0;
+    this.reductionDb = 12;
     this.attackMs = 10;
     this.releaseMs = 200;
-    this.holdMs = 120;
     this.currentGain = 1.0;
-    this.isOpen = true;
-    this.holdSamplesLeft = 0;
 
     this.port.onmessage = (event) => {
       const d = event.data || {};
       if (d.type !== "set") return;
       if (typeof d.enabled === "boolean") this.enabled = d.enabled;
       if (typeof d.thresholdDb === "number") this.thresholdDb = d.thresholdDb;
-      if (typeof d.hysteresisDb === "number") this.hysteresisDb = d.hysteresisDb;
+      if (typeof d.kneeDb === "number") this.kneeDb = d.kneeDb;
+      if (typeof d.ratio === "number") this.ratio = d.ratio;
       if (typeof d.reductionDb === "number") this.reductionDb = d.reductionDb;
       if (typeof d.attackMs === "number") this.attackMs = d.attackMs;
       if (typeof d.releaseMs === "number") this.releaseMs = d.releaseMs;
-      if (typeof d.holdMs === "number") this.holdMs = d.holdMs;
     };
   }
 
@@ -31,6 +30,10 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
 
   dbToGain(db) {
     return Math.pow(10, db / 20);
+  }
+
+  clamp(x, lo, hi) {
+    return Math.max(lo, Math.min(hi, x));
   }
 
   process(inputs, outputs) {
@@ -56,38 +59,26 @@ class NoiseGateProcessor extends AudioWorkletProcessor {
     const rms = n > 0 ? Math.sqrt(sumSq / n) : 0;
     const rmsDb = 20 * Math.log10(Math.max(1e-8, rms));
 
-    const minGain = this.dbToGain(-Math.abs(this.reductionDb));
+    const maxReductionDb = Math.abs(this.reductionDb);
+    const knee = Math.max(0, this.kneeDb);
+    const ratio = this.clamp(this.ratio, 1.0, 8.0);
 
-    const openThreshold = this.thresholdDb;
-    const closeThreshold = this.thresholdDb - Math.max(0, this.hysteresisDb);
-
-    if (!this.enabled) {
-      this.isOpen = true;
-      this.holdSamplesLeft = 0;
-    } else {
-      if (this.isOpen) {
-        if (rmsDb < closeThreshold) {
-          // Give speech tails a moment before closing.
-          if (this.holdSamplesLeft <= 0) {
-            this.holdSamplesLeft = Math.round((this.holdMs / 1000) * sampleRate);
-          }
-          this.holdSamplesLeft = Math.max(0, this.holdSamplesLeft - blockSize);
-          if (this.holdSamplesLeft === 0) {
-            this.isOpen = false;
-          }
-        } else {
-          this.holdSamplesLeft = 0;
-        }
-      } else {
-        // Closed: reopen only when signal is clearly above threshold.
-        if (rmsDb >= openThreshold) {
-          this.isOpen = true;
-          this.holdSamplesLeft = 0;
-        }
+    // Downward expander:
+    // - above threshold -> 0 dB gain
+    // - below threshold -> gradually attenuate, capped at -reductionDb
+    let gainDb = 0;
+    if (this.enabled) {
+      const delta = this.thresholdDb - rmsDb; // >0 means "below threshold"
+      if (delta > 0) {
+        // Soft knee: small deltas attenuate less to avoid chopping consonants.
+        const k = knee > 0 ? this.clamp(delta / knee, 0, 1) : 1;
+        const kneeScale = knee > 0 ? k * k : 1;
+        const effectiveDelta = delta * kneeScale;
+        gainDb = -Math.min(maxReductionDb, effectiveDelta * (ratio - 1));
       }
     }
 
-    const targetGain = this.enabled && !this.isOpen ? minGain : 1.0;
+    const targetGain = this.dbToGain(gainDb);
 
     const attackSec = Math.max(0.001, this.attackMs / 1000);
     const releaseSec = Math.max(0.005, this.releaseMs / 1000);

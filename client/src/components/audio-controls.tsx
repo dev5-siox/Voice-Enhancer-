@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Mic, MicOff, Volume2, Settings2, Sparkles, Save, Circle, Cable, AlertCircle } from "lucide-react";
+import { Mic, MicOff, Volume2, Settings2, Sparkles, Save, Circle, Cable, AlertCircle, AudioLines } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -18,7 +18,7 @@ import { WaveformVisualizer } from "./waveform-visualizer";
 import { AudioLevelMeter } from "./audio-level-meter";
 import type { AudioSettings, AccentPresetType } from "@shared/schema";
 import { accentPresetConfigs } from "@shared/schema";
-import type { OutputRouteStatus, SelfTestReport } from "@/hooks/use-audio-processor";
+import type { OutputRouteStatus, SelfTestReport, AbCompareResult } from "@/hooks/use-audio-processor";
 
 interface AudioDevice {
   deviceId: string;
@@ -55,9 +55,12 @@ interface AudioControlsProps {
   onStopRecording?: () => Promise<Blob>;
   onDownloadRecording?: () => Promise<Blob | null>;
   onRunSelfTest?: (opts?: { outputDeviceId?: string | null }) => Promise<SelfTestReport>;
+  onRunAbCompare?: (opts?: { ms?: number }) => Promise<AbCompareResult>;
   selfTestReport?: SelfTestReport | null;
   selfTestRecordingUrl?: string | null;
   isSelfTesting?: boolean;
+  abCompare?: AbCompareResult | null;
+  isAbComparing?: boolean;
   getAnalyserData: () => Uint8Array | null;
   error: string | null;
 }
@@ -105,9 +108,12 @@ export function AudioControls({
   onStopRecording,
   onDownloadRecording,
   onRunSelfTest,
+  onRunAbCompare,
   selfTestReport,
   selfTestRecordingUrl,
   isSelfTesting = false,
+  abCompare,
+  isAbComparing = false,
   getAnalyserData,
   error,
 }: AudioControlsProps) {
@@ -337,20 +343,35 @@ export function AudioControls({
                   {settings.pitchShift > 0 ? "+" : ""}{settings.pitchShift} st
                 </span>
               </div>
+              <div className="flex items-center justify-between py-1">
+                <div className="text-xs text-muted-foreground">
+                  Enable Pitch Shift (beta)
+                </div>
+                <Switch
+                  checked={settings.pitchShiftEnabled || false}
+                  onCheckedChange={(checked) => onSettingsChange({ pitchShiftEnabled: checked })}
+                  disabled={!processingActive || !settings.accentModifierEnabled}
+                  data-testid="switch-pitch-shift-enabled"
+                />
+              </div>
               <Slider
                 value={[settings.pitchShift]}
                 onValueChange={([value]) => onSettingsChange({ pitchShift: value })}
                 max={12}
                 min={-12}
                 step={1}
-                disabled={!pitchShiftSupported || !processingActive || !settings.accentModifierEnabled}
+                disabled={!pitchShiftSupported || !processingActive || !settings.accentModifierEnabled || !(settings.pitchShiftEnabled || false)}
                 data-testid="slider-pitch-shift"
               />
-              {!pitchShiftSupported && (
+              {!pitchShiftSupported ? (
                 <p className="text-xs text-muted-foreground">
-                  Pitch shift is not applied in the web version yet. Use <span className="font-medium">Formant Shift</span> for audible changes.
+                  Pitch shift is not available in this environment. Use <span className="font-medium">Formant Shift</span> for audible changes.
                 </p>
-              )}
+              ) : !(settings.pitchShiftEnabled || false) ? (
+                <p className="text-xs text-muted-foreground">
+                  Pitch shifting can sound metallic. It’s off by default—enable it above if you want it.
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -376,6 +397,60 @@ export function AudioControls({
                 Note: This is <span className="font-medium">tone/formant shaping</span>, not phoneme-level “accent conversion”.
               </p>
             </div>
+
+            {onRunAbCompare && (
+              <div className="pt-2 space-y-2">
+                <Button
+                  onClick={() => onRunAbCompare({ ms: 2000 })}
+                  variant="secondary"
+                  className="w-full"
+                  disabled={isAbComparing}
+                  data-testid="button-ab-compare"
+                >
+                  <AudioLines className="w-4 h-4 mr-2" />
+                  {isAbComparing ? "Recording A/B..." : "A/B Compare (2s neutral vs preset)"}
+                </Button>
+
+                {abCompare?.aUrl && abCompare?.bUrl && (
+                  <div className="p-3 rounded-md border bg-card text-xs space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">A/B Compare</span>
+                      <span className="text-muted-foreground font-mono">{abCompare.ms}ms</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const a = new Audio(abCompare.aUrl);
+                          await a.play();
+                        }}
+                      >
+                        Play A (neutral)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const a = new Audio(abCompare.bUrl);
+                          await a.play();
+                        }}
+                      >
+                        Play B (preset)
+                      </Button>
+                      <a className="text-xs underline text-muted-foreground self-center" href={abCompare.aUrl} download="voxfilter-ab-a.webm">
+                        Download A
+                      </a>
+                      <a className="text-xs underline text-muted-foreground self-center" href={abCompare.bUrl} download="voxfilter-ab-b.webm">
+                        Download B
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

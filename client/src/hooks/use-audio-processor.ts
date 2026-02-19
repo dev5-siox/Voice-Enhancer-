@@ -44,6 +44,13 @@ export interface SelfTestReport {
   };
 }
 
+export interface AbCompareResult {
+  createdAt: string;
+  aUrl: string;
+  bUrl: string;
+  ms: number;
+}
+
 interface AudioProcessorState {
   isInitialized: boolean;
   isProcessing: boolean;
@@ -66,6 +73,8 @@ interface AudioProcessorState {
   selfTestReport: SelfTestReport | null;
   selfTestRecordingUrl: string | null;
   isSelfTesting: boolean;
+  abCompare: AbCompareResult | null;
+  isAbComparing: boolean;
 }
 
 export function useAudioProcessor(settings: AudioSettings) {
@@ -91,6 +100,8 @@ export function useAudioProcessor(settings: AudioSettings) {
     selfTestReport: null,
     selfTestRecordingUrl: null,
     isSelfTesting: false,
+    abCompare: null,
+    isAbComparing: false,
   });
 
   const [devices, setDevices] = useState<AudioDevice[]>([]);
@@ -138,6 +149,7 @@ export function useAudioProcessor(settings: AudioSettings) {
   const recordingStartTimeRef = useRef<number>(0);
   const recordingIntervalRef = useRef<number | null>(null);
   const selfTestRecordingUrlRef = useRef<string | null>(null);
+  const abCompareUrlsRef = useRef<{ aUrl: string | null; bUrl: string | null }>({ aUrl: null, bUrl: null });
 
   // Keep settings ref updated
   useEffect(() => {
@@ -317,6 +329,18 @@ export function useAudioProcessor(settings: AudioSettings) {
       }
       selfTestRecordingUrlRef.current = null;
     }
+    // Revoke A/B compare URLs
+    for (const k of ["aUrl", "bUrl"] as const) {
+      const url = abCompareUrlsRef.current[k];
+      if (url) {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          // ignore
+        }
+        abCompareUrlsRef.current[k] = null;
+      }
+    }
 
     console.log("VoxFilter: stop()", { error: errorOverride ?? null });
 
@@ -341,6 +365,8 @@ export function useAudioProcessor(settings: AudioSettings) {
       selfTestReport: null,
       selfTestRecordingUrl: null,
       isSelfTesting: false,
+      abCompare: null,
+      isAbComparing: false,
     }));
   }, []);
 
@@ -780,23 +806,22 @@ export function useAudioProcessor(settings: AudioSettings) {
         
         // Configure noise gate (reduces background noise between speech)
         if (noiseGateNodeRef.current) {
-          // For ambient + distant voices: higher intensity = higher threshold + more attenuation.
-          // This can suppress quieter background talkers, but won't remove loud voices.
-          const thresholdDb = -58 + intensity * 26; // -58..-32 dBFS
-          const reductionDb = 12 + intensity * 36; // 12..48 dB attenuation
-          const hysteresisDb = 6; // prevent pumping/chatter
-          const attackMs = 4 + intensity * 6; // 4..10ms
-          const releaseMs = 140 + intensity * 220; // 140..360ms
-          const holdMs = 70 + intensity * 120; // 70..190ms
+          // Soft expander: avoid "voice breaking" while still reducing room noise.
+          const thresholdDb = -68 + intensity * 12; // -68..-56 dBFS (low threshold to avoid chopping speech)
+          const reductionDb = 6 + intensity * 18; // 6..24 dB max attenuation
+          const ratio = 1.6 + intensity * 1.8; // 1.6..3.4
+          const kneeDb = 10 + intensity * 6; // 10..16 dB
+          const attackMs = 6 + intensity * 8; // 6..14ms
+          const releaseMs = 160 + intensity * 200; // 160..360ms
           noiseGateNodeRef.current.port.postMessage({
             type: "set",
             enabled: true,
             thresholdDb,
-            hysteresisDb,
+            ratio,
+            kneeDb,
             reductionDb,
             attackMs,
             releaseMs,
-            holdMs,
           });
         }
         
@@ -855,11 +880,16 @@ export function useAudioProcessor(settings: AudioSettings) {
       const resGain = Math.max(-6, Math.min(6, (formantShift / 15) * 4));
       aRes.gain.value = resGain;
 
-      // Apply real pitch shifting via AudioWorklet
+      // Apply pitch shifting via AudioWorklet (opt-in; can sound metallic on some mics)
       if (pitchShifterNodeRef.current) {
-        const pitchRatio = Math.pow(2, pitchShift / 12);
-        pitchShifterNodeRef.current.port.postMessage({ type: 'setPitchRatio', value: pitchRatio });
-        console.log("VoxFilter: pitch shift applied", { semitones: pitchShift, ratio: pitchRatio.toFixed(4) });
+        const effectivePitchShift = s.pitchShiftEnabled ? pitchShift : 0;
+        const pitchRatio = Math.pow(2, effectivePitchShift / 12);
+        pitchShifterNodeRef.current.port.postMessage({ type: "setPitchRatio", value: pitchRatio });
+        console.log("VoxFilter: pitch shift applied", {
+          enabled: Boolean(s.pitchShiftEnabled),
+          semitones: effectivePitchShift,
+          ratio: pitchRatio.toFixed(4),
+        });
       }
       
       // Formant shifting via EQ filters
@@ -1248,6 +1278,80 @@ export function useAudioProcessor(settings: AudioSettings) {
       recorder.start();
     });
   }, []);
+
+  const runAbCompare = useCallback(
+    async (opts?: { ms?: number }) => {
+      const ms = Math.max(500, Math.min(5000, Math.round(opts?.ms ?? 2000)));
+      const createdAt = new Date().toISOString();
+
+      // Revoke previous URLs
+      for (const k of ["aUrl", "bUrl"] as const) {
+        const url = abCompareUrlsRef.current[k];
+        if (url) {
+          try {
+            URL.revokeObjectURL(url);
+          } catch {
+            // ignore
+          }
+          abCompareUrlsRef.current[k] = null;
+        }
+      }
+
+      setState((prev) => ({ ...prev, isAbComparing: true, abCompare: null }));
+
+      try {
+        if (
+          !audioContextRef.current ||
+          !processedStreamRef.current ||
+          processedStreamRef.current.getAudioTracks().length === 0
+        ) {
+          await initialize();
+        }
+
+        const base = settingsRef.current;
+        const applyNow = (override: Partial<AudioSettings>) =>
+          applyAccentSettings({ ...(base as any), ...(override as any) } as AudioSettings);
+
+        // A: neutral baseline
+        applyNow({ accentModifierEnabled: false });
+        await new Promise((r) => setTimeout(r, 150));
+        const aBlob = await recordProcessedForMs(ms);
+
+        // B: current preset (force enabled so user can compare even if toggled off)
+        applyNow({
+          accentModifierEnabled: true,
+          accentPreset: base.accentPreset,
+          pitchShift: base.pitchShift,
+          formantShift: base.formantShift,
+          pitchShiftEnabled: base.pitchShiftEnabled,
+        } as any);
+        await new Promise((r) => setTimeout(r, 150));
+        const bBlob = await recordProcessedForMs(ms);
+
+        // Restore current settings
+        applyAccentSettings(base);
+
+        const aUrl = URL.createObjectURL(aBlob);
+        const bUrl = URL.createObjectURL(bBlob);
+        abCompareUrlsRef.current.aUrl = aUrl;
+        abCompareUrlsRef.current.bUrl = bUrl;
+
+        const result: AbCompareResult = { createdAt, aUrl, bUrl, ms };
+        setState((prev) => ({ ...prev, isAbComparing: false, abCompare: result }));
+        return result;
+      } catch (e) {
+        // Restore current settings best-effort
+        try {
+          applyAccentSettings(settingsRef.current);
+        } catch {
+          // ignore
+        }
+        setState((prev) => ({ ...prev, isAbComparing: false }));
+        throw e;
+      }
+    },
+    [applyAccentSettings, initialize, recordProcessedForMs]
+  );
 
   // Enable audio output to a specific device (for virtual cable routing)
   const enableOutput = useCallback(async (deviceId?: string) => {
@@ -1799,6 +1903,7 @@ export function useAudioProcessor(settings: AudioSettings) {
     disableOutput,
     setOutputDevice,
     runSelfTest,
+    runAbCompare,
     startRecording,
     stopRecording,
     downloadRecording,

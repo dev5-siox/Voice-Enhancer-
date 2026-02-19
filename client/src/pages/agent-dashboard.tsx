@@ -505,9 +505,12 @@ export default function AgentDashboard() {
           onDisableOutput={audioProcessor.disableOutput}
           onSetOutputDevice={audioProcessor.setOutputDevice}
           onRunSelfTest={audioProcessor.runSelfTest}
+          onRunAbCompare={audioProcessor.runAbCompare}
           selfTestReport={audioProcessor.selfTestReport}
           selfTestRecordingUrl={audioProcessor.selfTestRecordingUrl}
           isSelfTesting={audioProcessor.isSelfTesting}
+          abCompare={audioProcessor.abCompare}
+          isAbComparing={audioProcessor.isAbComparing}
           onStartRecording={audioProcessor.startRecording}
           onStopRecording={audioProcessor.stopRecording}
           onDownloadRecording={audioProcessor.downloadRecording}
